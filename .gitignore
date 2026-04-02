@@ -7,7 +7,7 @@
 .skaffold-*.yaml
 
 # Terraform
-.terraform/
+*.terraform/
 *.tfstate
 *.tfstate.*
 crash.log
