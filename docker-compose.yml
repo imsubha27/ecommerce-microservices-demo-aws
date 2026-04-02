@@ -1,0 +1,231 @@
+# Docker Compose file for microservices-demo-customise-aws
+
+networks:
+  default:
+    name: microservices-demo
+    driver: bridge
+
+
+services:
+
+  # AdService
+  ad:
+    image: ${IMAGE_NAME}/adservice:${IMAGE_VERSION}
+    build:
+      context: ./src/adservice
+    deploy:
+      resources:
+        limits:
+          memory: 400M
+    restart: unless-stopped
+    ports:
+      - "${AD_PORT}"
+    environment:
+      - PORT=${AD_PORT}
+
+  # Cart service
+  cart:
+    image: ${IMAGE_NAME}/cartservice:${IMAGE_VERSION}
+    build:
+      context: ./src/cartservice/src
+    deploy:
+      resources:
+        limits:
+          memory: 100M
+    restart: unless-stopped
+    ports:
+      - "${CART_PORT}"
+    environment:
+      - PORT=${CART_PORT}
+      - REDIS_ADDR=redis:${REDIS_PORT}
+    depends_on:
+      redis:
+        condition: service_started
+
+  # Checkout service
+  checkout:
+    image: ${IMAGE_NAME}/checkoutservice:${IMAGE_VERSION}
+    build:
+      context: ./src/checkoutservice
+    deploy:
+      resources:
+        limits:
+          memory: 100M
+    restart: unless-stopped
+    ports:
+      - "${CHECKOUT_PORT}"
+    environment:
+      - PRODUCT_CATALOG_SERVICE_ADDR=product-catalog:${PRODUCT_CATALOG_PORT}
+      - CART_SERVICE_ADDR=cart:${CART_PORT}
+      - CURRENCY_SERVICE_ADDR=currency:${CURRENCY_PORT}
+      - PAYMENT_SERVICE_ADDR=payment:${PAYMENT_PORT}
+      - SHIPPING_SERVICE_ADDR=shipping:${SHIPPING_PORT}
+      - EMAIL_SERVICE_ADDR=email:${EMAIL_PORT}
+   
+    depends_on:
+      cart:
+        condition: service_started
+      currency:
+        condition: service_started
+      email:
+        condition: service_started
+      payment:
+        condition: service_started
+      product-catalog:
+        condition: service_started
+      shipping:
+        condition: service_started
+
+  # Currency service
+  currency:
+    image: ${IMAGE_NAME}/currencyservice:${IMAGE_VERSION}
+    build:
+      context: ./src/currencyservice
+    deploy:
+      resources:
+        limits:
+          memory: 350M
+    restart: unless-stopped
+    ports:
+      - "${CURRENCY_PORT}"
+    environment:
+      - PORT=${CURRENCY_PORT}
+
+  # Email service
+  email:
+    image: ${IMAGE_NAME}/emailservice:${IMAGE_VERSION}
+    build:
+      context: ./src/emailservice
+    deploy:
+      resources:
+        limits:
+          memory: 300M
+    restart: unless-stopped
+    ports:
+      - "${EMAIL_PORT}"
+    environment:
+      - PORT=${EMAIL_PORT}
+
+  
+  # Frontend
+  frontend:
+    image: ${IMAGE_NAME}/frontend:${IMAGE_VERSION}
+    build:
+      context: ./src/frontend
+    deploy:
+      resources:
+        limits:
+          memory: 150M
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_PORT}"
+    environment:
+      - PORT=${FRONTEND_PORT}
+      - PRODUCT_CATALOG_SERVICE_ADDR=product-catalog:${PRODUCT_CATALOG_PORT}
+      - CART_SERVICE_ADDR=cart:${CART_PORT}
+      - CURRENCY_SERVICE_ADDR=currency:${CURRENCY_PORT}
+      - SHIPPING_SERVICE_ADDR=shipping:${SHIPPING_PORT}
+      - RECOMMENDATION_SERVICE_ADDR=recommendation:${RECOMMENDATION_PORT}
+      - CHECKOUT_SERVICE_ADDR=checkout:${CHECKOUT_PORT}
+      - AD_SERVICE_ADDR=ad:${AD_PORT}
+      - SHOPPING_ASSISTANT_SERVICE_ADDR=shoppingassistant:${SHOPPING_ASSISTANT_PORT}
+      - ENABLE_PROFILER=0
+    depends_on:
+      ad:
+        condition: service_started
+      cart:
+        condition: service_started
+      checkout:
+        condition: service_started
+      currency:
+        condition: service_started
+      product-catalog:
+        condition: service_started
+      recommendation:
+        condition: service_started
+      shipping:
+        condition: service_started
+
+
+  # Payment service
+  payment:
+    image: ${IMAGE_NAME}/paymentservice:${IMAGE_VERSION}
+    build:
+      context: ./src/paymentservice
+    deploy:
+      resources:
+        limits:
+          memory: 500M
+    restart: unless-stopped
+    ports:
+      - "${PAYMENT_PORT}"
+    environment:
+      - PORT=${PAYMENT_PORT}
+
+
+  # Product Catalog service
+  product-catalog:
+    image: ${IMAGE_NAME}/productcatalogservice:${IMAGE_VERSION}
+    build:
+      context: ./src/productcatalogservice
+    deploy:
+      resources:
+        limits:
+          memory: 100M
+    restart: unless-stopped
+    ports:
+      - "${PRODUCT_CATALOG_PORT}"
+    environment:
+      - PORT=${PRODUCT_CATALOG_PORT}
+    volumes:
+      - ./src/productcatalogservice/products.json:/app/products.json
+
+
+  # Recommendation service
+  recommendation:
+    image: ${IMAGE_NAME}/recommendation-service:${IMAGE_VERSION}
+    build:
+      context: ./src/recommendationservice
+    deploy:
+      resources:
+        limits:
+          memory: 300M 
+    restart: unless-stopped
+    ports:
+      - "${RECOMMENDATION_PORT}"
+    environment:
+      - PORT=${RECOMMENDATION_PORT}
+      - PRODUCT_CATALOG_SERVICE_ADDR=product-catalog:${PRODUCT_CATALOG_PORT}
+    depends_on:
+      product-catalog:
+        condition: service_started
+
+
+  # Shipping service
+  shipping:
+    image: ${IMAGE_NAME}/shippingservice:${IMAGE_VERSION}
+    build:
+      context: ./src/shippingservice
+    deploy:
+      resources:
+        limits:
+          memory: 100M
+    restart: unless-stopped
+    ports:
+      - "${SHIPPING_PORT}"
+    environment:
+      - PORT=${SHIPPING_PORT}
+
+  
+
+  # Dependent Services
+  # REDIS service
+  redis:
+    image: redis:alpine
+    deploy:
+      resources:
+        limits:
+          memory: 100M
+    restart: unless-stopped
+    ports:
+      - "${REDIS_PORT}"
