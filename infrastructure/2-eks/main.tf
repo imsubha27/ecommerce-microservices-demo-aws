@@ -1,9 +1,12 @@
+
+# Fetch VPC/subnets from remote state
 locals {
   vpc_id             = data.terraform_remote_state.network.outputs.vpc_id
   private_subnet_ids = data.terraform_remote_state.network.outputs.private_subnet_ids
   public_subnet_ids  = data.terraform_remote_state.network.outputs.public_subnet_ids
 }
 
+# Create IAM role for EKS cluster
 resource "aws_iam_role" "eks_role" {
   name = "${var.cluster_name}-eks-role"
   assume_role_policy = jsonencode({
@@ -23,11 +26,13 @@ resource "aws_iam_role" "eks_role" {
   }
 }
 
+# Attach EKS Cluster Policy to the role
 resource "aws_iam_role_policy_attachment" "eks_policy_attachment" {
   role       = aws_iam_role.eks_role.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonEKSClusterPolicy"
 }
 
+# Create the EKS cluster
 resource "aws_eks_cluster" "eks_cluster" {
   name     = var.cluster_name
   version  = var.cluster_version
@@ -48,6 +53,9 @@ resource "aws_eks_cluster" "eks_cluster" {
   }
 }
 
+
+
+# Create IAM role for EKS worker nodes
 resource "aws_iam_role" "eks_node_role" {
   name = "${var.cluster_name}-node-role"
   assume_role_policy = jsonencode({
@@ -67,6 +75,7 @@ resource "aws_iam_role" "eks_node_role" {
   }
 }
 
+# Attach necessary policies to the node role
 resource "aws_iam_role_policy_attachment" "eks_node_policy_attachment" {
     for_each = toset([
       "arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy",
@@ -77,6 +86,7 @@ resource "aws_iam_role_policy_attachment" "eks_node_policy_attachment" {
     policy_arn = each.value
 }
 
+# Create EKS node group
 resource "aws_eks_node_group" "eks_node_group" {
     for_each = var.node_groups
     cluster_name = aws_eks_cluster.eks_cluster.name
@@ -92,5 +102,4 @@ resource "aws_eks_node_group" "eks_node_group" {
       min_size     = each.value.scaling_config.min_size
     }
     depends_on = [ aws_iam_role_policy_attachment.eks_node_policy_attachment ]
-
 }

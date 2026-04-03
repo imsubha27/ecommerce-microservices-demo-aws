@@ -7,7 +7,7 @@ variable "cluster_name" {
 variable "cluster_version" {
   description = "Version of the EKS cluster"
   type        = string
-  default     = "1.35"
+  default     = "1.35" # Update to the latest supported EKS version
 }
 
 variable "node_groups" {
@@ -24,7 +24,7 @@ variable "node_groups" {
   default = {
     default = {
       instance_types = ["t3.medium"]
-      capacity_type  = "ON_DEMAND"
+      capacity_type  = "ON_DEMAND" # Use ON_DEMAND for production, SPOT for cost savings in non-critical env
       scaling_config = {
         desired_size = 2
         max_size     = 4
