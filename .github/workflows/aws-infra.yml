@@ -34,28 +34,12 @@ jobs:
         uses: hashicorp/setup-terraform@v2
         with:
           terraform_version: 1.5.0
- 
-      - name: 0-bootstrap Plan and Apply
-        if: ${{ github.event.inputs.terraformAction == 'apply' }}
-        run: |
-          cd infrastructure/0-bootstrap
-          terraform init
-          terraform import aws_s3_bucket.tf_state microservices-demo-27 || true
-          terraform import aws_dynamodb_table.terraform-state-lock tf-state-lock || true
-          terraform plan -out=tfplan
-          terraform show -no-color tfplan > plan.txt
 
-      - name: Apply 0-bootstrap
-        if: ${{ github.event.inputs.terraformAction == 'apply' }}
-        run: |
-          cd infrastructure/0-bootstrap
-          terraform apply -auto-approve tfplan
-      
 
       - name: 1-networking Plan and Apply
         if: ${{ github.event.inputs.terraformAction == 'apply' }}
         run: |
-          cd infrastructure/1-networking
+          cd infrastructure/1-network
           terraform init
           terraform plan -out=tfplan
           terraform show -no-color tfplan > plan.txt
@@ -63,7 +47,7 @@ jobs:
       - name: Apply 1-networking
         if: ${{ github.event.inputs.terraformAction == 'apply' }}
         run: |
-          cd infrastructure/1-networking
+          cd infrastructure/1-network
           terraform apply -auto-approve tfplan
 
 
@@ -94,14 +78,6 @@ jobs:
       - name: Destroy 1-networking
         if: ${{ github.event.inputs.terraformAction == 'destroy' }}
         run: |
-          cd infrastructure/1-networking
-          terraform init
-          terraform destroy -auto-approve
-
-
-      - name: Destroy 0-bootstrap
-        if: ${{ github.event.inputs.terraformAction == 'destroy' }}
-        run: |
-          cd infrastructure/0-bootstrap
+          cd infrastructure/1-network
           terraform init
           terraform destroy -auto-approve
