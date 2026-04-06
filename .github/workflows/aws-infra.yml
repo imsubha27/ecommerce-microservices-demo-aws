@@ -6,6 +6,7 @@ on:
         description: 'Select the Terraform action to perform'
         required: true
         default: 'apply'
+        type: choice
         options:
           - apply
           - destroy
