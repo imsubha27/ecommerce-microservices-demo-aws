@@ -29,6 +29,11 @@ jobs:
           aws-region: ${{ secrets.AWS_REGION }}
 
 # Plan and apply Terraform for each module in sequence
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.5.0
  
       - name: 0-bootstrap Plan and Apply
         if: ${{ github.event.inputs.terraformAction == 'apply' }}
