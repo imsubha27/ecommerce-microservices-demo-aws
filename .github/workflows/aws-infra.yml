@@ -1,0 +1,102 @@
+name: AWS Infrastructure Deployment
+on:
+  workflow_dispatch:
+    inputs: 
+      terraformAction:
+        description: 'Select the Terraform action to perform'
+        required: true
+        default: 'apply'
+        options:
+          - apply
+          - destroy
+jobs:
+  terraform:
+    runs-on: ubuntu-latest
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+# Plan and apply Terraform for each module in sequence
+ 
+      - name: 0-bootstrap Plan and Apply
+        if: ${{ github.event.inputs.terraform_action == 'apply' }}
+        run: |
+          cd infrastructure/0-bootstrap
+          terraform init
+          terraform import aws_s3_bucket.terraform-state-bucket microservices-demo-27 || true
+          terrfaorm import aws_dynamodb_table.terraform-state-lock tf-state-lock || true
+          terraform plan -out=tfplan
+          terraform show -no-color tfplan > plan.txt
+
+      - name: Apply 0-bootstrap
+        if: ${{ github.event.inputs.terraform_action == 'apply' }}
+        run: |
+          cd infrastructure/0-bootstrap
+          terraform apply -auto-approve tfplan
+      
+
+      - name: 1-networking Plan and Apply
+        if: ${{ github.event.inputs.terraform_action == 'apply' }}
+        run: |
+          cd infrastructure/1-networking
+          terraform init
+          terraform plan -out=tfplan
+          terraform show -no-color tfplan > plan.txt
+
+      - name: Apply 1-networking
+        if: ${{ github.event.inputs.terraform_action == 'apply' }}
+        run: |
+          cd infrastructure/1-networking
+          terraform apply -auto-approve tfplan
+
+
+      - name: 2-eks Plan and Apply
+        if: ${{ github.event.inputs.terraform_action == 'apply' }}
+        run: |
+          cd infrastructure/2-eks
+          terraform init
+          terraform plan -out=tfplan
+          terraform show -no-color tfplan > plan.txt
+
+      - name: Apply 2-eks
+        if: ${{ github.event.inputs.terraform_action == 'apply' }}
+        run: |
+          cd infrastructure/2-eks
+          terraform apply -auto-approve tfplan
+
+# Destroy resources in reverse order
+
+      - name: Destroy 2-eks
+        if: ${{ github.event.inputs.terraform_action == 'destroy' }}
+        run: |
+          cd infrastructure/2-eks
+          terraform init
+          terraform destroy -auto-approve
+
+
+      - name: Destroy 1-networking
+        if: ${{ github.event.inputs.terraform_action == 'destroy' }}
+        run: |
+          cd infrastructure/1-networking
+          terraform init
+          terraform destroy -auto-approve
+
+          
+      - name: Destroy 0-bootstrap
+        if: ${{ github.event.inputs.terraform_action == 'destroy' }}
+        run: |
+          cd infrastructure/0-bootstrap
+          terraform init
+          terraform destroy -auto-approve
