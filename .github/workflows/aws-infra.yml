@@ -40,8 +40,8 @@ jobs:
         run: |
           cd infrastructure/0-bootstrap
           terraform init
-          terraform import aws_s3_bucket.terraform-state-bucket microservices-demo-27 || true
-          terrfaorm import aws_dynamodb_table.terraform-state-lock tf-state-lock || true
+          terraform import aws_s3_bucket.tf_state microservices-demo-27 || true
+          terraform import aws_dynamodb_table.terraform-state-lock tf-state-lock || true
           terraform plan -out=tfplan
           terraform show -no-color tfplan > plan.txt
 
