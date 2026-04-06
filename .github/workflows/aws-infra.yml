@@ -31,7 +31,7 @@ jobs:
 # Plan and apply Terraform for each module in sequence
  
       - name: 0-bootstrap Plan and Apply
-        if: ${{ github.event.inputs.terraform_action == 'apply' }}
+        if: ${{ github.event.inputs.terraformAction == 'apply' }}
         run: |
           cd infrastructure/0-bootstrap
           terraform init
@@ -41,14 +41,14 @@ jobs:
           terraform show -no-color tfplan > plan.txt
 
       - name: Apply 0-bootstrap
-        if: ${{ github.event.inputs.terraform_action == 'apply' }}
+        if: ${{ github.event.inputs.terraformAction == 'apply' }}
         run: |
           cd infrastructure/0-bootstrap
           terraform apply -auto-approve tfplan
       
 
       - name: 1-networking Plan and Apply
-        if: ${{ github.event.inputs.terraform_action == 'apply' }}
+        if: ${{ github.event.inputs.terraformAction == 'apply' }}
         run: |
           cd infrastructure/1-networking
           terraform init
@@ -56,14 +56,14 @@ jobs:
           terraform show -no-color tfplan > plan.txt
 
       - name: Apply 1-networking
-        if: ${{ github.event.inputs.terraform_action == 'apply' }}
+        if: ${{ github.event.inputs.terraformAction == 'apply' }}
         run: |
           cd infrastructure/1-networking
           terraform apply -auto-approve tfplan
 
 
       - name: 2-eks Plan and Apply
-        if: ${{ github.event.inputs.terraform_action == 'apply' }}
+        if: ${{ github.event.inputs.terraformAction == 'apply' }}
         run: |
           cd infrastructure/2-eks
           terraform init
@@ -71,7 +71,7 @@ jobs:
           terraform show -no-color tfplan > plan.txt
 
       - name: Apply 2-eks
-        if: ${{ github.event.inputs.terraform_action == 'apply' }}
+        if: ${{ github.event.inputs.terraformAction == 'apply' }}
         run: |
           cd infrastructure/2-eks
           terraform apply -auto-approve tfplan
@@ -79,7 +79,7 @@ jobs:
 # Destroy resources in reverse order
 
       - name: Destroy 2-eks
-        if: ${{ github.event.inputs.terraform_action == 'destroy' }}
+        if: ${{ github.event.inputs.terraformAction == 'destroy' }}
         run: |
           cd infrastructure/2-eks
           terraform init
@@ -87,7 +87,7 @@ jobs:
 
 
       - name: Destroy 1-networking
-        if: ${{ github.event.inputs.terraform_action == 'destroy' }}
+        if: ${{ github.event.inputs.terraformAction == 'destroy' }}
         run: |
           cd infrastructure/1-networking
           terraform init
@@ -95,7 +95,7 @@ jobs:
 
 
       - name: Destroy 0-bootstrap
-        if: ${{ github.event.inputs.terraform_action == 'destroy' }}
+        if: ${{ github.event.inputs.terraformAction == 'destroy' }}
         run: |
           cd infrastructure/0-bootstrap
           terraform init
