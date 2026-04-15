@@ -23,6 +23,26 @@ services:
     environment:
       - PORT=${AD_PORT}
 
+  # Auth Service
+  auth:
+    image: ${IMAGE_NAME}/authservice:${IMAGE_VERSION}
+    build:
+      context: ./src/authservice
+    restart: unless-stopped
+    ports:
+      - "${AUTH_PORT}"
+    environment:
+      - PORT=${AUTH_PORT}
+      - DB_HOST=${DB_HOST}
+      - DB_PORT=${DB_PORT}
+      - DB_NAME=${DB_NAME}
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - JWT_SECRET=${JWT_SECRET}
+    depends_on:
+      auth-db:
+        condition: service_started
+
   # Cart service
   cart:
     image: ${IMAGE_NAME}/cartservice:${IMAGE_VERSION}
@@ -129,9 +149,12 @@ services:
       - CHECKOUT_SERVICE_ADDR=checkout:${CHECKOUT_PORT}
       - AD_SERVICE_ADDR=ad:${AD_PORT}
       - SHOPPING_ASSISTANT_SERVICE_ADDR=shoppingassistant:${SHOPPING_ASSISTANT_PORT}
+      - AUTH_SERVICE_ADDR=auth:${AUTH_PORT}
       - ENABLE_PROFILER=0
     depends_on:
       ad:
+        condition: service_started
+      auth:
         condition: service_started
       cart:
         condition: service_started
@@ -229,3 +252,19 @@ services:
     restart: unless-stopped
     ports:
       - "${REDIS_PORT}"
+
+  # Auth DB (PostgreSQL)
+  auth-db:
+    image: postgres:15
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    ports:
+      - "${DB_PORT}:5432"
+    volumes:
+      - auth-db-data:/var/lib/postgresql/data
+
+volumes:
+  auth-db-data:

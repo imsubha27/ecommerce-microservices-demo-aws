@@ -17,6 +17,7 @@ package main
 import (
 	"context"
 	"net/http"
+	"strings"
 	"time"
 	"os"
 
@@ -108,4 +109,38 @@ func ensureSessionID(next http.Handler) http.HandlerFunc {
 		r = r.WithContext(ctx)
 		next.ServeHTTP(w, r)
 	}
+}
+
+// requireAuth checks for a valid shop_auth cookie on all routes except
+// /login, /register, /static, /_healthz and /robots.txt
+func (fe *frontendServer) requireAuth(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		path := r.URL.Path
+		// Public paths — no auth needed
+		if path == baseUrl+"/login" ||
+			path == baseUrl+"/register" ||
+			path == baseUrl+"/_healthz" ||
+			path == baseUrl+"/robots.txt" ||
+			strings.HasPrefix(path, baseUrl+"/static/") {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		cookie, err := r.Cookie("shop_auth")
+		if err != nil || cookie.Value == "" {
+			http.Redirect(w, r, baseUrl+"/login", http.StatusFound)
+			return
+		}
+
+		// Verify token with auth service
+		resp, err := http.Get("http://" + fe.authSvcAddr + "/verify?token=" + cookie.Value)
+		if err != nil || resp.StatusCode != http.StatusOK {
+			// Clear stale cookie and redirect to login
+			http.SetCookie(w, &http.Cookie{Name: "shop_auth", MaxAge: -1, Path: "/"})
+			http.Redirect(w, r, baseUrl+"/login", http.StatusFound)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
 }

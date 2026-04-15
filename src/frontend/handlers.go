@@ -423,8 +423,68 @@ func (fe *frontendServer) logoutHandler(w http.ResponseWriter, r *http.Request) 
 		c.MaxAge = -1
 		http.SetCookie(w, c)
 	}
-	w.Header().Set("Location", baseUrl + "/")
-	w.WriteHeader(http.StatusFound)
+	http.Redirect(w, r, baseUrl+"/login", http.StatusFound)
+}
+
+func (fe *frontendServer) loginHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodGet {
+		if err := templates.ExecuteTemplate(w, "login", map[string]interface{}{
+			"baseUrl": baseUrl,
+			"error":   r.URL.Query().Get("error"),
+		}); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+		return
+	}
+
+	email    := r.FormValue("email")
+	password := r.FormValue("password")
+
+	body, _ := json.Marshal(map[string]string{"email": email, "password": password})
+	resp, err := http.Post("http://"+fe.authSvcAddr+"/login", "application/json", strings.NewReader(string(body)))
+	if err != nil || resp.StatusCode != http.StatusOK {
+		http.Redirect(w, r, baseUrl+"/login?error=Invalid+email+or+password", http.StatusFound)
+		return
+	}
+	defer resp.Body.Close()
+
+	var result map[string]interface{}
+	json.NewDecoder(resp.Body).Decode(&result)
+
+	http.SetCookie(w, &http.Cookie{Name: "shop_auth", Value: result["token"].(string), MaxAge: cookieMaxAge, Path: "/"})
+	http.SetCookie(w, &http.Cookie{Name: "shop_username", Value: result["username"].(string), MaxAge: cookieMaxAge, Path: "/"})
+	http.Redirect(w, r, baseUrl+"/", http.StatusFound)
+}
+
+func (fe *frontendServer) registerHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodGet {
+		if err := templates.ExecuteTemplate(w, "register", map[string]interface{}{
+			"baseUrl": baseUrl,
+			"error":   r.URL.Query().Get("error"),
+		}); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+		return
+	}
+
+	username := r.FormValue("username")
+	email    := r.FormValue("email")
+	password := r.FormValue("password")
+
+	body, _ := json.Marshal(map[string]string{"username": username, "email": email, "password": password})
+	resp, err := http.Post("http://"+fe.authSvcAddr+"/register", "application/json", strings.NewReader(string(body)))
+	if err != nil || (resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated) {
+		http.Redirect(w, r, baseUrl+"/register?error=Registration+failed.+Username+or+email+may+already+exist.", http.StatusFound)
+		return
+	}
+	defer resp.Body.Close()
+
+	var result map[string]interface{}
+	json.NewDecoder(resp.Body).Decode(&result)
+
+	http.SetCookie(w, &http.Cookie{Name: "shop_auth", Value: result["token"].(string), MaxAge: cookieMaxAge, Path: "/"})
+	http.SetCookie(w, &http.Cookie{Name: "shop_username", Value: result["username"].(string), MaxAge: cookieMaxAge, Path: "/"})
+	http.Redirect(w, r, baseUrl+"/", http.StatusFound)
 }
 
 func (fe *frontendServer) getProductByID(w http.ResponseWriter, r *http.Request) {
@@ -549,6 +609,10 @@ func renderHTTPError(log logrus.FieldLogger, r *http.Request, w http.ResponseWri
 }
 
 func injectCommonTemplateData(r *http.Request, payload map[string]interface{}) map[string]interface{} {
+	username := ""
+	if c, err := r.Cookie("shop_username"); err == nil {
+		username = c.Value
+	}
 	data := map[string]interface{}{
 		"session_id":        sessionID(r),
 		"request_id":        r.Context().Value(ctxKeyRequestID{}),
@@ -561,6 +625,7 @@ func injectCommonTemplateData(r *http.Request, payload map[string]interface{}) m
 		"frontendMessage":   frontendMessage,
 		"currentYear":       time.Now().Year(),
 		"baseUrl":           baseUrl,
+		"username":          username,
 	}
 
 	for k, v := range payload {
