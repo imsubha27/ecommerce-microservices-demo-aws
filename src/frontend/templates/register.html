@@ -1,0 +1,96 @@
+{{ define "register" }}
+
+{{ template "header" . }}
+
+<div {{ with $.platform_css }} class="{{.}}" {{ end }}>
+  <span class="platform-flag">
+    {{$.platform_name}}
+  </span>
+</div>
+
+<main role="main" class="home">
+
+  <div class="home-mobile-hero-banner d-lg-none"></div>
+
+  <div class="container-fluid">
+    <div class="row">
+
+      <div class="col-12 col-lg-12 px-10-percent">
+
+        <div class="row justify-content-center px-xl-6">
+
+          <div class="col-md-4">
+
+            <div class="auth-card">
+
+              <div class="auth-card-logo">
+                <div class="logo-icon">
+                  <i class="bi bi-person-plus-fill"></i>
+                </div>
+                <h2>Create account</h2>
+                <p class="subtitle">Join today</p>
+              </div>
+
+              {{ if $.error }}
+              <div class="alert alert-danger alert-auth">
+                {{ $.error }}
+              </div>
+              {{ end }}
+
+              <form method="POST" action="{{ $.baseUrl }}/register">
+
+                <div class="form-group">
+                  <label>Username</label>
+                  <input type="text" name="username" class="form-control"
+                         value="{{ $.username }}" required>
+                </div>
+
+                <div class="form-group">
+                  <label>Email</label>
+                  <input type="email" name="email" class="form-control"
+                         value="{{ $.email }}" required>
+                </div>
+
+                <div class="form-group">
+                  <label>Password</label>
+                  <input type="password" name="password" class="form-control"
+                         minlength="6" required>
+                </div>
+
+                <button type="submit" class="btn btn-auth">
+                  Create Account
+                </button>
+
+              </form>
+
+              <div class="auth-switch">
+                Already have an account?
+                <a href="{{ $.baseUrl }}/login">Sign in</a>
+              </div>
+
+            </div>
+
+          </div>
+
+        </div>
+
+        <!-- Desktop Footer -->
+        <div class="row d-none d-lg-block home-desktop-footer-row">
+          <div class="col-12 p-0">
+            {{ template "footer" . }}
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+  </div>
+
+</main>
+
+<!-- Mobile Footer -->
+<div class="d-lg-none">
+  {{ template "footer" . }}
+</div>
+
+{{ end }}
