@@ -1,0 +1,92 @@
+{{ define "order-history" }}
+
+{{ template "header" . }}
+
+<div {{ with $.platform_css }}class="{{.}}"{{ end }}>
+    <span class="platform-flag">{{ $.platform_name }}</span>
+</div>
+
+<main role="main" class="order">
+    <section class="container" style="padding-top: 40px; padding-bottom: 60px;">
+
+        <div class="row mb-4">
+            <div class="col-12">
+                <h3 style="font-weight:600;">My Orders</h3>
+                <p style="color:#888;">Your complete order history</p>
+            </div>
+        </div>
+
+        {{ if not $.orders }}
+        <div class="row">
+            <div class="col-12 text-center" style="padding: 60px 0;">
+                <p style="font-size:1.1rem; color:#aaa;">You haven't placed any orders yet.</p>
+                <a href="{{ $.baseUrl }}/" class="cymbal-button-primary" role="button" style="margin-top:16px;">
+                    Start Shopping
+                </a>
+            </div>
+        </div>
+        {{ else }}
+
+        {{ range $.orders }}
+        <div class="row" style="border:1px solid #e8e8e8; border-radius:12px; padding:24px; margin-bottom:20px; background:#fff;">
+
+            <!-- Order header -->
+            <div class="col-12 col-md-8">
+                <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:8px;">
+                    <span style="font-weight:600; font-size:0.95rem;">Order #{{ index . "order_id" }}</span>
+                    <span style="font-size:0.8rem; color:#888; background:#f4f4f4; padding:2px 10px; border-radius:20px;">
+                        {{ index . "created_at" }}
+                    </span>
+                </div>
+                <div style="font-size:0.85rem; color:#666; margin-bottom:4px;">
+                    Tracking: <strong>{{ index . "tracking_id" }}</strong>
+                </div>
+                {{ with index . "shipping_addr" }}
+                {{ if . }}
+                <div style="font-size:0.82rem; color:#999;">
+                    Shipped to: {{ index . "street" }}, {{ index . "city" }}, {{ index . "country" }}
+                </div>
+                {{ end }}
+                {{ end }}
+            </div>
+
+            <!-- Total -->
+            <div class="col-12 col-md-4 text-md-right" style="margin-top:8px;">
+                <span style="font-size:1.15rem; font-weight:700; color:#333;">
+                    {{ index . "total_paid" }}
+                </span>
+            </div>
+
+            <!-- Items -->
+            {{ with index . "items" }}
+            {{ if . }}
+            <div class="col-12" style="margin-top:16px; border-top:1px solid #f0f0f0; padding-top:16px;">
+                <div style="font-size:0.82rem; color:#999; margin-bottom:8px; text-transform:uppercase; letter-spacing:0.05em;">Items</div>
+                {{ range . }}
+                <div style="display:flex; justify-content:space-between; font-size:0.88rem; padding:4px 0; border-bottom:1px solid #fafafa;">
+                    <span style="color:#444;">{{ index . "name" }} &times; {{ index . "quantity" }}</span>
+                    <span style="color:#888;">{{ index . "price" }}</span>
+                </div>
+                {{ end }}
+            </div>
+            {{ end }}
+            {{ end }}
+
+        </div>
+        {{ end }}
+
+        {{ end }}
+
+        <div class="row mt-4">
+            <div class="col-12">
+                <a href="{{ $.baseUrl }}/" style="font-size:0.9rem; color:#c06080; text-decoration:none;">
+                    &larr; Continue Shopping
+                </a>
+            </div>
+        </div>
+
+    </section>
+</main>
+
+{{ template "footer" . }}
+{{ end }}
