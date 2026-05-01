@@ -15,6 +15,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -56,6 +57,40 @@ var (
 
 var validEnvs = []string{"local", "gcp", "azure", "aws", "onprem", "alibaba"}
 
+// ── helpers ──────────────────────────────────────────────────────────────────
+
+// authToken returns the JWT from the shop_auth cookie, or "" if absent.
+func authToken(r *http.Request) string {
+	if c, err := r.Cookie("shop_auth"); err == nil {
+		return c.Value
+	}
+	return ""
+}
+
+// setAuthCookie writes the shop_auth and shop_username cookies with HttpOnly
+// and SameSite=Lax for security. Secure flag is omitted intentionally so local
+// HTTP dev still works; enable it when you move to HTTPS on k8s.
+func setAuthCookies(w http.ResponseWriter, token, username string) {
+	http.SetCookie(w, &http.Cookie{
+		Name:     "shop_auth",
+		Value:    token,
+		MaxAge:   cookieMaxAge,
+		Path:     "/",
+		HttpOnly: true,           // JS cannot read the auth token — fixes XSS risk
+		SameSite: http.SameSiteLaxMode,
+	})
+	http.SetCookie(w, &http.Cookie{
+		Name:     "shop_username",
+		Value:    username,
+		MaxAge:   cookieMaxAge,
+		Path:     "/",
+		HttpOnly: false,          // template reads this via Go, but it's not sensitive
+		SameSite: http.SameSiteLaxMode,
+	})
+}
+
+// ── handlers ─────────────────────────────────────────────────────────────────
+
 func (fe *frontendServer) homeHandler(w http.ResponseWriter, r *http.Request) {
 	log := r.Context().Value(ctxKeyLog{}).(logrus.FieldLogger)
 	log.WithField("currency", currentCurrency(r)).Info("home")
@@ -89,14 +124,11 @@ func (fe *frontendServer) homeHandler(w http.ResponseWriter, r *http.Request) {
 		ps[i] = productView{p, price}
 	}
 
-	// Set ENV_PLATFORM (default to local if not set; use env var if set; otherwise detect GCP, which overrides env)_
 	var env = os.Getenv("ENV_PLATFORM")
-	// Only override from env variable if set + valid env
 	if env == "" || stringinSlice(validEnvs, env) == false {
 		fmt.Println("env platform is either empty or invalid")
 		env = "local"
 	}
-	// Autodetect GCP
 	addrs, err := net.LookupHost("metadata.google.internal.")
 	if err == nil && len(addrs) >= 0 {
 		log.Debugf("Detected Google metadata server: %v, setting ENV_PLATFORM to GCP.", addrs)
@@ -112,7 +144,7 @@ func (fe *frontendServer) homeHandler(w http.ResponseWriter, r *http.Request) {
 		"currencies":    currencies,
 		"products":      ps,
 		"cart_size":     cartSize(cart),
-		"banner_color":  os.Getenv("BANNER_COLOR"), // illustrates canary deployments
+		"banner_color":  os.Getenv("BANNER_COLOR"),
 		"ad":            fe.chooseAd(r.Context(), []string{}, log),
 	})); err != nil {
 		log.Error(err)
@@ -174,7 +206,6 @@ func (fe *frontendServer) productHandler(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	// ignores the error retrieving recommendations since it is not critical
 	recommendations, err := fe.getRecommendations(r.Context(), sessionID(r), []string{id})
 	if err != nil {
 		log.WithField("error", err).Warn("failed to get product recommendations")
@@ -185,8 +216,6 @@ func (fe *frontendServer) productHandler(w http.ResponseWriter, r *http.Request)
 		Price *pb.Money
 	}{p, price}
 
-	// Fetch packaging info (weight/dimensions) of the product
-	// The packaging service is an optional microservice you can run as part of a Google Cloud demo.
 	var packagingInfo *PackagingInfo = nil
 	if isPackagingServiceConfigured() {
 		packagingInfo, err = httpGetPackagingInfo(id)
@@ -232,7 +261,7 @@ func (fe *frontendServer) addToCartHandler(w http.ResponseWriter, r *http.Reques
 		renderHTTPError(log, r, w, errors.Wrap(err, "failed to add to cart"), http.StatusInternalServerError)
 		return
 	}
-	w.Header().Set("location", baseUrl + "/cart")
+	w.Header().Set("location", baseUrl+"/cart")
 	w.WriteHeader(http.StatusFound)
 }
 
@@ -244,7 +273,7 @@ func (fe *frontendServer) emptyCartHandler(w http.ResponseWriter, r *http.Reques
 		renderHTTPError(log, r, w, errors.Wrap(err, "failed to empty cart"), http.StatusInternalServerError)
 		return
 	}
-	w.Header().Set("location", baseUrl + "/")
+	w.Header().Set("location", baseUrl+"/")
 	w.WriteHeader(http.StatusFound)
 }
 
@@ -262,7 +291,6 @@ func (fe *frontendServer) viewCartHandler(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	// ignores the error retrieving recommendations since it is not critical
 	recommendations, err := fe.getRecommendations(r.Context(), sessionID(r), cartIDs(cart))
 	if err != nil {
 		log.WithField("error", err).Warn("failed to get product recommendations")
@@ -374,7 +402,6 @@ func (fe *frontendServer) placeOrderHandler(w http.ResponseWriter, r *http.Reque
 	}
 	log.WithField("order", order.GetOrder().GetOrderId()).Info("order placed")
 
-	order.GetOrder().GetItems()
 	recommendations, _ := fe.getRecommendations(r.Context(), sessionID(r), nil)
 
 	totalPaid := *order.GetOrder().GetShippingCost()
@@ -382,6 +409,9 @@ func (fe *frontendServer) placeOrderHandler(w http.ResponseWriter, r *http.Reque
 		multPrice := money.MultiplySlow(*v.GetCost(), uint32(v.GetItem().GetQuantity()))
 		totalPaid = money.Must(money.Sum(totalPaid, multPrice))
 	}
+
+	// ── Save order to auth service (best-effort, non-blocking) ──────────────
+	go fe.saveOrderToAuthService(r, order.GetOrder(), &totalPaid, log)
 
 	currencies, err := fe.getCurrencies(r.Context())
 	if err != nil {
@@ -395,6 +425,101 @@ func (fe *frontendServer) placeOrderHandler(w http.ResponseWriter, r *http.Reque
 		"order":           order.GetOrder(),
 		"total_paid":      &totalPaid,
 		"recommendations": recommendations,
+	})); err != nil {
+		log.Println(err)
+	}
+}
+
+// saveOrderToAuthService persists the order in the auth DB so the user can
+// view their history. Runs in a goroutine — failure is logged but not fatal.
+func (fe *frontendServer) saveOrderToAuthService(r *http.Request, o *pb.OrderResult, totalPaid *pb.Money, log logrus.FieldLogger) {
+	token := authToken(r)
+	if token == "" {
+		return
+	}
+
+	// Build items list
+	type orderItem struct {
+		Name     string `json:"name"`
+		Quantity int32  `json:"quantity"`
+		Price    string `json:"price"`
+	}
+	var items []orderItem
+	for _, v := range o.GetItems() {
+		items = append(items, orderItem{
+			Name:     v.GetItem().GetProductId(),
+			Quantity: v.GetItem().GetQuantity(),
+			Price:    renderMoney(*v.GetCost()),
+		})
+	}
+
+	body, _ := json.Marshal(map[string]interface{}{
+		"order_id":    o.GetOrderId(),
+		"tracking_id": o.GetShippingTrackingId(),
+		"total_paid":  renderMoney(*totalPaid),
+		"currency":    totalPaid.GetCurrencyCode(),
+		"items":       items,
+		"shipping_addr": map[string]interface{}{
+			"street":  o.GetShippingAddress().GetStreetAddress(),
+			"city":    o.GetShippingAddress().GetCity(),
+			"state":   o.GetShippingAddress().GetState(),
+			"country": o.GetShippingAddress().GetCountry(),
+		},
+	})
+
+	req, err := http.NewRequest(http.MethodPost, "http://"+fe.authSvcAddr+"/orders", bytes.NewReader(body))
+	if err != nil {
+		log.WithField("error", err).Warn("could not create save-order request")
+		return
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+token)
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		log.WithField("error", err).Warn("could not save order to auth service")
+		return
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusCreated {
+		log.WithField("status", resp.StatusCode).Warn("save-order returned non-201")
+	}
+}
+
+// orderHistoryHandler fetches the user's past orders from auth service.
+func (fe *frontendServer) orderHistoryHandler(w http.ResponseWriter, r *http.Request) {
+	log := r.Context().Value(ctxKeyLog{}).(logrus.FieldLogger)
+
+	token := authToken(r)
+	if token == "" {
+		http.Redirect(w, r, baseUrl+"/login", http.StatusFound)
+		return
+	}
+
+	req, err := http.NewRequest(http.MethodGet, "http://"+fe.authSvcAddr+"/orders", nil)
+	if err != nil {
+		renderHTTPError(log, r, w, errors.Wrap(err, "could not build orders request"), http.StatusInternalServerError)
+		return
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		renderHTTPError(log, r, w, errors.Wrap(err, "could not fetch orders"), http.StatusInternalServerError)
+		return
+	}
+	defer resp.Body.Close()
+
+	var result struct {
+		Orders []map[string]interface{} `json:"orders"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		renderHTTPError(log, r, w, errors.Wrap(err, "could not decode orders response"), http.StatusInternalServerError)
+		return
+	}
+
+	if err := templates.ExecuteTemplate(w, "order-history", injectCommonTemplateData(r, map[string]interface{}{
+		"orders": result.Orders,
 	})); err != nil {
 		log.Println(err)
 	}
@@ -451,8 +576,8 @@ func (fe *frontendServer) loginHandler(w http.ResponseWriter, r *http.Request) {
 	var result map[string]interface{}
 	json.NewDecoder(resp.Body).Decode(&result)
 
-	http.SetCookie(w, &http.Cookie{Name: "shop_auth", Value: result["token"].(string), MaxAge: cookieMaxAge, Path: "/"})
-	http.SetCookie(w, &http.Cookie{Name: "shop_username", Value: result["username"].(string), MaxAge: cookieMaxAge, Path: "/"})
+	// SECURITY: HttpOnly=true so JS cannot steal the auth token
+	setAuthCookies(w, result["token"].(string), result["username"].(string))
 	http.Redirect(w, r, baseUrl+"/", http.StatusFound)
 }
 
@@ -482,8 +607,8 @@ func (fe *frontendServer) registerHandler(w http.ResponseWriter, r *http.Request
 	var result map[string]interface{}
 	json.NewDecoder(resp.Body).Decode(&result)
 
-	http.SetCookie(w, &http.Cookie{Name: "shop_auth", Value: result["token"].(string), MaxAge: cookieMaxAge, Path: "/"})
-	http.SetCookie(w, &http.Cookie{Name: "shop_username", Value: result["username"].(string), MaxAge: cookieMaxAge, Path: "/"})
+	// SECURITY: HttpOnly=true so JS cannot steal the auth token
+	setAuthCookies(w, result["token"].(string), result["username"].(string))
 	http.Redirect(w, r, baseUrl+"/", http.StatusFound)
 }
 
@@ -550,9 +675,7 @@ func (fe *frontendServer) chatBotHandler(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	// respond with the same message
 	json.NewEncoder(w).Encode(Response{Message: response.Content})
-
 	w.WriteHeader(http.StatusOK)
 }
 
@@ -582,8 +705,6 @@ func (fe *frontendServer) setCurrencyHandler(w http.ResponseWriter, r *http.Requ
 	w.WriteHeader(http.StatusFound)
 }
 
-// chooseAd queries for advertisements available and randomly chooses one, if
-// available. It ignores the error retrieving the ad since it is not critical.
 func (fe *frontendServer) chooseAd(ctx context.Context, ctxKeys []string, log logrus.FieldLogger) *pb.Ad {
 	ads, err := fe.getAd(ctx, ctxKeys)
 	if err != nil {
@@ -659,7 +780,6 @@ func cartIDs(c []*pb.CartItem) []string {
 	return out
 }
 
-// get total # of items in cart
 func cartSize(c []*pb.CartItem) int {
 	cartSize := 0
 	for _, item := range c {
@@ -683,7 +803,7 @@ func renderCurrencyLogo(currencyCode string) string {
 		"GBP": "£",
 	}
 
-	logo := "$" //default
+	logo := "$"
 	if val, ok := logos[currencyCode]; ok {
 		logo = val
 	}
