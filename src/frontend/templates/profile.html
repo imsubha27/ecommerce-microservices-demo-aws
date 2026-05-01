@@ -14,6 +14,7 @@
  limitations under the License.
 -->
 
+{{ define "profile" }}
 {{- template "header" . }}
 
 <main>
@@ -28,7 +29,7 @@
       <!-- Avatar + name -->
       <div style="display:flex; align-items:center; gap:1rem; margin-bottom:1.5rem; padding-bottom:1.5rem; border-bottom:1px solid #f0f0f0;">
         <div style="width:56px; height:56px; border-radius:50%; background:#fce4ec; display:flex; align-items:center; justify-content:center; font-size:22px; font-weight:700; color:#ad1457; flex-shrink:0; text-transform:uppercase;">
-          {{ slice $.username 0 1 }}
+          {{ if $.username }}{{ slice $.username 0 1 }}{{ else }}?{{ end }}
         </div>
         <div>
           <div style="font-size:1rem; font-weight:700; color:#1a0a0a;">{{ $.username }}</div>
@@ -72,3 +73,4 @@
 </main>
 
 {{- template "footer" . }}
+{{ end }}
