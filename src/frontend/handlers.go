@@ -818,3 +818,20 @@ func stringinSlice(slice []string, val string) bool {
 	}
 	return false
 }
+
+func (fe *frontendServer) profileHandler(w http.ResponseWriter, r *http.Request) {
+	log := r.Context().Value(ctxKeyLog{}).(logrus.FieldLogger)
+
+	currencies, err := fe.getCurrencies(r.Context())
+	if err != nil {
+		renderHTTPError(log, r, w, fmt.Errorf("could not retrieve currencies: %+v", err), http.StatusInternalServerError)
+		return
+	}
+
+	if err := templates.ExecuteTemplate(w, "profile", injectCommonTemplateData(r, map[string]interface{}{
+		"show_currency": true,
+		"currencies":    currencies,
+	})); err != nil {
+		log.WithError(err).Error("error rendering profile template")
+	}
+}
