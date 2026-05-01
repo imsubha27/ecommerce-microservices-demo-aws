@@ -14,9 +14,18 @@ var log *logrus.Logger
 
 func init() {
 	initializeLogger()
-	// Use a goroutine to ensure loadDeploymentDetails()'s GCP API
-	// calls don't block non-GCP deployments. See issue #685.
-	go loadDeploymentDetails()
+	// Initialize the map immediately with whatever we can get locally,
+	// so the footer never shows "Deployment details are still loading."
+	// GCP metadata calls run in a goroutine and fill in extra fields if available.
+	deploymentDetailsMap = make(map[string]string)
+
+	// Always available: hostname of the current container / machine
+	if hostname, err := os.Hostname(); err == nil {
+		deploymentDetailsMap["HOSTNAME"] = hostname
+	}
+
+	// Attempt GCP metadata calls in background — no-op on local/Docker/AWS
+	go enrichWithGCPMetadata()
 }
 
 func initializeLogger() {
@@ -33,32 +42,23 @@ func initializeLogger() {
 	log.Out = os.Stdout
 }
 
-func loadDeploymentDetails() {
-	deploymentDetailsMap = make(map[string]string)
-	var metaServerClient = metadata.NewClient(&http.Client{})
+// enrichWithGCPMetadata tries to fetch cluster/zone from the GCP metadata server.
+// On non-GCP environments (local Docker, AWS, etc.) these calls will simply fail
+// and the map keeps whatever was set during init — no error shown to the user.
+func enrichWithGCPMetadata() {
+	metaClient := metadata.NewClient(&http.Client{})
 
-	podHostname, err := os.Hostname()
-	if err != nil {
-		log.Error("Failed to fetch the hostname for the Pod", err)
+	if cluster, err := metaClient.InstanceAttributeValue("cluster-name"); err == nil && cluster != "" {
+		deploymentDetailsMap["CLUSTERNAME"] = cluster
 	}
 
-	podCluster, err := metaServerClient.InstanceAttributeValue("cluster-name")
-	if err != nil {
-		log.Error("Failed to fetch the name of the cluster in which the pod is running", err)
+	if zone, err := metaClient.Zone(); err == nil && zone != "" {
+		deploymentDetailsMap["ZONE"] = zone
 	}
-
-	podZone, err := metaServerClient.Zone()
-	if err != nil {
-		log.Error("Failed to fetch the Zone of the node where the pod is scheduled", err)
-	}
-
-	deploymentDetailsMap["HOSTNAME"] = podHostname
-	deploymentDetailsMap["CLUSTERNAME"] = podCluster
-	deploymentDetailsMap["ZONE"] = podZone
 
 	log.WithFields(logrus.Fields{
-		"cluster":  podCluster,
-		"zone":     podZone,
-		"hostname": podHostname,
-	}).Debug("Loaded deployment details")
+		"cluster":  deploymentDetailsMap["CLUSTERNAME"],
+		"zone":     deploymentDetailsMap["ZONE"],
+		"hostname": deploymentDetailsMap["HOSTNAME"],
+	}).Debug("Deployment details loaded")
 }

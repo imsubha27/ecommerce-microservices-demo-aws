@@ -112,20 +112,36 @@ func ensureSessionID(next http.Handler) http.HandlerFunc {
 }
 
 // requireAuth checks for a valid shop_auth cookie on all routes except
-// /login, /register, /static, /_healthz and /robots.txt
+// /login, /register, /static, /_healthz and /robots.txt.
+// If the user is already logged in and visits /login or /register, they
+// are redirected to the home page.
 func (fe *frontendServer) requireAuth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		path := r.URL.Path
-		// Public paths — no auth needed
-		if path == baseUrl+"/login" ||
-			path == baseUrl+"/register" ||
-			path == baseUrl+"/_healthz" ||
+
+		// For /login and /register: if user already has a valid token, send them home
+		if path == baseUrl+"/login" || path == baseUrl+"/register" {
+			if cookie, err := r.Cookie("shop_auth"); err == nil && cookie.Value != "" {
+				resp, err := http.Get("http://" + fe.authSvcAddr + "/verify?token=" + cookie.Value)
+				if err == nil && resp.StatusCode == http.StatusOK {
+					http.Redirect(w, r, baseUrl+"/", http.StatusFound)
+					return
+				}
+			}
+			// Not logged in (or invalid token) — let them through to login/register
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		// Public paths that never need auth
+		if path == baseUrl+"/_healthz" ||
 			path == baseUrl+"/robots.txt" ||
 			strings.HasPrefix(path, baseUrl+"/static/") {
 			next.ServeHTTP(w, r)
 			return
 		}
 
+		// All other routes require a valid token
 		cookie, err := r.Cookie("shop_auth")
 		if err != nil || cookie.Value == "" {
 			http.Redirect(w, r, baseUrl+"/login", http.StatusFound)
@@ -137,6 +153,7 @@ func (fe *frontendServer) requireAuth(next http.Handler) http.Handler {
 		if err != nil || resp.StatusCode != http.StatusOK {
 			// Clear stale cookie and redirect to login
 			http.SetCookie(w, &http.Cookie{Name: "shop_auth", MaxAge: -1, Path: "/"})
+			http.SetCookie(w, &http.Cookie{Name: "shop_username", MaxAge: -1, Path: "/"})
 			http.Redirect(w, r, baseUrl+"/login", http.StatusFound)
 			return
 		}

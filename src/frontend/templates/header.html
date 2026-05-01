@@ -44,6 +44,87 @@
     {{ else }}
     <link rel='shortcut icon' type='image/x-icon' href='{{ $.baseUrl }}/static/favicon.ico' />
     {{ end }}
+    <style>
+        /* ── Prevent horizontal scroll on all screen sizes ─ */
+        html, body {
+            overflow-x: hidden;
+            max-width: 100%;
+        }
+
+        /* ── Desktop user nav ───────────────────────────── */
+        .user-nav {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-left: 16px;
+        }
+        .user-greeting {
+            font-size: 0.85rem;
+            color: #6c757d;
+            font-weight: 500;
+            white-space: nowrap;
+            max-width: 140px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .btn-logout {
+            font-size: 0.8rem;
+            padding: 4px 14px;
+            border-radius: 20px;
+            border: 1px solid #ccc;
+            background: transparent;
+            color: #555;
+            cursor: pointer;
+            text-decoration: none;
+            white-space: nowrap;
+            transition: background 0.2s, color 0.2s;
+        }
+        .btn-logout:hover {
+            background: #f44336;
+            border-color: #f44336;
+            color: #fff;
+            text-decoration: none;
+        }
+
+        /* ── Mobile (≤ 576px) ───────────────────────────── */
+        @media (max-width: 576px) {
+
+            /* Keep everything on one row, no wrapping */
+            .sub-navbar .container {
+                padding-left: 12px !important;
+                padding-right: 12px !important;
+                flex-wrap: nowrap !important;
+            }
+
+            /* Hide the entire currency selector — too wide for mobile */
+            .h-controls {
+                display: none !important;
+            }
+
+            /* Hide "Hi, username" text — keep only Logout button */
+            .user-greeting {
+                display: none !important;
+            }
+
+            /* Tighten user-nav spacing */
+            .user-nav {
+                margin-left: 8px;
+                gap: 4px;
+            }
+
+            /* Slightly smaller logout button */
+            .btn-logout {
+                font-size: 0.75rem;
+                padding: 4px 10px;
+            }
+
+            /* Cart icon size */
+            .cart-link .logo {
+                width: 24px !important;
+                height: 24px !important;
+            }
+        }
+    </style>
 </head>
 
 <body>
@@ -55,8 +136,10 @@
             </div>
         </div>
         {{ end }}
+
         <div class="navbar sub-navbar">
-            <div class="container d-flex justify-content-between">
+            <div class="container d-flex justify-content-between align-items-center">
+
                 <a href="{{ $.baseUrl }}/" class="navbar-brand d-flex align-items-center">
                     {{ if $.is_cymbal_brand }}
                     <img src="{{ $.baseUrl }}/static/icons/Cymbal_NavLogo.svg" alt="" class="top-left-logo-cymbal" />
@@ -64,15 +147,16 @@
                     <img src="{{ $.baseUrl }}/static/icons/Hipster_NavLogo.svg" alt="" class="top-left-logo" />
                     {{ end }}
                 </a>
-                <div class="controls">
+
+                <div class="controls" style="display:flex; align-items:center; flex-wrap:nowrap;">
 
                     {{ if $.show_currency }}
                     <div class="h-controls">
                         <div class="h-control">
-                            <span class="icon currency-icon"> {{ renderCurrencyLogo $.user_currency}}</span>
-                            <form method="POST" class="controls-form" action="{{ $.baseUrl }}/setCurrency" id="currency_form" >
+                            <span class="icon currency-icon">{{ renderCurrencyLogo $.user_currency }}</span>
+                            <form method="POST" class="controls-form" action="{{ $.baseUrl }}/setCurrency" id="currency_form">
                                 <select name="currency_code" onchange="document.getElementById('currency_form').submit();">
-                                        {{range $.currencies}}
+                                    {{range $.currencies}}
                                     <option value="{{.}}" {{if eq . $.user_currency}}selected="selected"{{end}}>{{.}}</option>
                                     {{end}}
                                 </select>
@@ -84,19 +168,27 @@
 
                     {{ if $.assistant_enabled }}
                     <a href="{{ $.baseUrl }}/assistant" class="cart-link">
-                      <img src="{{ $.baseUrl }}/static/icons/Hipster_WandIcon.svg" style="width: 22px; height: 22px;" alt="Assistant icon" class="logo" title="Assistant" />
+                        <img src="{{ $.baseUrl }}/static/icons/Hipster_WandIcon.svg" style="width:22px;height:22px;" alt="Assistant icon" class="logo" title="Assistant" />
                     </a>
                     {{ end }}
 
+                    {{/* Cart + user info — only when logged in */}}
+                    {{ if $.username }}
                     <a href="{{ $.baseUrl }}/cart" class="cart-link">
                         <img src="{{ $.baseUrl }}/static/icons/Hipster_CartIcon.svg" alt="Cart icon" class="logo" title="Cart" />
                         {{ if $.cart_size }}
                         <span class="cart-size-circle">{{$.cart_size}}</span>
                         {{ end }}
                     </a>
+
+                    <div class="user-nav">
+                        <span class="user-greeting">Hi, {{ $.username }}</span>
+                        <a href="{{ $.baseUrl }}/logout" class="btn-logout">Logout</a>
+                    </div>
+                    {{ end }}
+
                 </div>
             </div>
         </div>
-
     </header>
     {{end}}
