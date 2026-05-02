@@ -87,6 +87,7 @@ type frontendServer struct {
 
 	shoppingAssistantSvcAddr string
 	authSvcAddr              string
+	orderSvcAddr             string
 }
 
 func main() {
@@ -139,6 +140,7 @@ func main() {
 	mustMapEnv(&svc.adSvcAddr, "AD_SERVICE_ADDR")
 	mustMapEnv(&svc.shoppingAssistantSvcAddr, "SHOPPING_ASSISTANT_SERVICE_ADDR")
 	mustMapEnv(&svc.authSvcAddr, "AUTH_SERVICE_ADDR")
+	mustMapEnv(&svc.orderSvcAddr, "ORDER_SERVICE_ADDR")
 
 	mustConnGRPC(ctx, &svc.currencySvcConn, svc.currencySvcAddr)
 	mustConnGRPC(ctx, &svc.productCatalogSvcConn, svc.productCatalogSvcAddr)
@@ -160,7 +162,6 @@ func main() {
 	r.HandleFunc(baseUrl + "/assistant", svc.assistantHandler).Methods(http.MethodGet)
 	r.HandleFunc(baseUrl + "/login", svc.loginHandler).Methods(http.MethodGet, http.MethodPost)
 	r.HandleFunc(baseUrl + "/register", svc.registerHandler).Methods(http.MethodGet, http.MethodPost)
-	r.HandleFunc(baseUrl + "/metrics", svc.metricsHandler).Methods(http.MethodGet)
 	r.PathPrefix(baseUrl + "/static/").Handler(http.StripPrefix(baseUrl + "/static/", http.FileServer(http.Dir("./static/"))))
 	r.HandleFunc(baseUrl + "/robots.txt", func(w http.ResponseWriter, _ *http.Request) { fmt.Fprint(w, "User-agent: *\nDisallow: /") })
 	r.HandleFunc(baseUrl + "/_healthz", func(w http.ResponseWriter, _ *http.Request) { fmt.Fprint(w, "ok") })

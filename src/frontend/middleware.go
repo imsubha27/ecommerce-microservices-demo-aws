@@ -135,7 +135,6 @@ func (fe *frontendServer) requireAuth(next http.Handler) http.Handler {
 
 		// Public paths that never need auth
 		if path == baseUrl+"/_healthz" ||
-			path == baseUrl+"/metrics" ||
 			path == baseUrl+"/robots.txt" ||
 			strings.HasPrefix(path, baseUrl+"/static/") {
 			next.ServeHTTP(w, r)

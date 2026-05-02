@@ -27,7 +27,6 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"sync/atomic"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -93,7 +92,6 @@ func setAuthCookies(w http.ResponseWriter, token, username string) {
 // ── handlers ─────────────────────────────────────────────────────────────────
 
 func (fe *frontendServer) homeHandler(w http.ResponseWriter, r *http.Request) {
-	atomic.AddInt64(&metricsReqTotal, 1)
 	log := r.Context().Value(ctxKeyLog{}).(logrus.FieldLogger)
 	log.WithField("currency", currentCurrency(r)).Info("home")
 	currencies, err := fe.getCurrencies(r.Context())
@@ -413,7 +411,7 @@ func (fe *frontendServer) placeOrderHandler(w http.ResponseWriter, r *http.Reque
 	}
 
 	// ── Save order to auth service (best-effort, non-blocking) ──────────────
-	go fe.saveOrderToAuthService(r, order.GetOrder(), &totalPaid, log)
+	go fe.saveOrderToOrderService(r, order.GetOrder(), &totalPaid, log)
 
 	currencies, err := fe.getCurrencies(r.Context())
 	if err != nil {
@@ -432,9 +430,9 @@ func (fe *frontendServer) placeOrderHandler(w http.ResponseWriter, r *http.Reque
 	}
 }
 
-// saveOrderToAuthService persists the order in the auth DB so the user can
+// saveOrderToOrderService persists the order in the order service DB so the user can
 // view their history. Runs in a goroutine — failure is logged but not fatal.
-func (fe *frontendServer) saveOrderToAuthService(r *http.Request, o *pb.OrderResult, totalPaid *pb.Money, log logrus.FieldLogger) {
+func (fe *frontendServer) saveOrderToOrderService(r *http.Request, o *pb.OrderResult, totalPaid *pb.Money, log logrus.FieldLogger) {
 	token := authToken(r)
 	if token == "" {
 		return
@@ -469,7 +467,7 @@ func (fe *frontendServer) saveOrderToAuthService(r *http.Request, o *pb.OrderRes
 		},
 	})
 
-	req, err := http.NewRequest(http.MethodPost, "http://"+fe.authSvcAddr+"/orders", bytes.NewReader(body))
+	req, err := http.NewRequest(http.MethodPost, "http://"+fe.orderSvcAddr+"/orders", bytes.NewReader(body))
 	if err != nil {
 		log.WithField("error", err).Warn("could not create save-order request")
 		return
@@ -498,7 +496,7 @@ func (fe *frontendServer) orderHistoryHandler(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	req, err := http.NewRequest(http.MethodGet, "http://"+fe.authSvcAddr+"/orders", nil)
+	req, err := http.NewRequest(http.MethodGet, "http://"+fe.orderSvcAddr+"/orders", nil)
 	if err != nil {
 		renderHTTPError(log, r, w, errors.Wrap(err, "could not build orders request"), http.StatusInternalServerError)
 		return
@@ -836,30 +834,4 @@ func (fe *frontendServer) profileHandler(w http.ResponseWriter, r *http.Request)
 	})); err != nil {
 		log.WithError(err).Error("error rendering profile template")
 	}
-}
-
-// metricsHandler exposes a basic Prometheus-compatible /metrics endpoint.
-// Uses only the standard library — no extra dependency needed.
-// Tracks: uptime, total HTTP requests served, Go runtime info.
-var (
-	metricsStartTime   = time.Now()
-	metricsReqTotal    int64
-)
-
-func (fe *frontendServer) metricsHandler(w http.ResponseWriter, r *http.Request) {
-	uptimeSeconds := time.Since(metricsStartTime).Seconds()
-
-	w.Header().Set("Content-Type", "text/plain; version=0.0.4; charset=utf-8")
-	fmt.Fprintf(w, `# HELP frontend_uptime_seconds Time since the frontend started.
-# TYPE frontend_uptime_seconds gauge
-frontend_uptime_seconds %.2f
-
-# HELP frontend_requests_total Total HTTP requests handled (excluding /metrics).
-# TYPE frontend_requests_total counter
-frontend_requests_total %d
-
-# HELP frontend_build_info Static build info.
-# TYPE frontend_build_info gauge
-frontend_build_info{service="frontend"} 1
-`, uptimeSeconds, metricsReqTotal)
 }
