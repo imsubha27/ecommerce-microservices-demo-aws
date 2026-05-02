@@ -1,4 +1,5 @@
 from flask import Flask, request, jsonify
+from prometheus_flask_exporter import PrometheusMetrics
 from functools import wraps
 import psycopg2
 import psycopg2.extras
@@ -11,6 +12,7 @@ import json
 import logging
 
 app = Flask(__name__)
+metrics = PrometheusMetrics(app)  # exposes /metrics automatically
 
 logging.basicConfig(
     level=logging.INFO,

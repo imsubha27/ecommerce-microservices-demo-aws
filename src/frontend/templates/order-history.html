@@ -6,86 +6,165 @@
     <span class="platform-flag">{{ $.platform_name }}</span>
 </div>
 
-<main role="main" class="order">
-    <section class="container" style="padding-top: 40px; padding-bottom: 60px;">
+<style>
+    .orders-wrap { padding: 36px 0 64px; }
+    .orders-wrap h3 { font-weight: 700; margin-bottom: 4px; font-size: 1.4rem; }
+    .orders-wrap .subtitle { color: #aaa; font-size: 0.88rem; margin-bottom: 28px; }
 
-        <div class="row mb-4">
-            <div class="col-12">
-                <h3 style="font-weight:600;">My Orders</h3>
-                <p style="color:#888;">Your complete order history</p>
-            </div>
-        </div>
+    .order-card {
+        border: 1px solid #ebebeb;
+        border-radius: 14px;
+        background: #fff;
+        margin-bottom: 20px;
+        overflow: hidden;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.04);
+        transition: box-shadow 0.2s;
+    }
+    .order-card:hover { box-shadow: 0 4px 18px rgba(0,0,0,0.08); }
+
+    .order-card-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 8px;
+        padding: 14px 20px;
+        background: #fafafa;
+        border-bottom: 1px solid #ebebeb;
+    }
+    .order-meta { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .order-id   { font-size: 0.82rem; font-weight: 700; color: #333; }
+    .order-date {
+        font-size: 0.75rem; color: #aaa;
+        background: #f0f0f0; padding: 2px 10px; border-radius: 20px;
+    }
+    .order-total { font-size: 1.05rem; font-weight: 700; color: #222; white-space: nowrap; }
+
+    .order-tracking {
+        padding: 8px 20px;
+        font-size: 0.8rem; color: #999;
+        border-bottom: 1px solid #f5f5f5;
+    }
+    .order-tracking strong { color: #666; }
+
+    /* Items row with images */
+    .order-items {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        padding: 16px 20px;
+    }
+    .order-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        background: #f9f9f9;
+        border: 1px solid #f0f0f0;
+        border-radius: 10px;
+        padding: 8px 14px 8px 8px;
+        min-width: 0;
+    }
+    .order-item-img {
+        width: 52px;
+        height: 52px;
+        object-fit: cover;
+        border-radius: 8px;
+        background: #eee;
+        flex-shrink: 0;
+    }
+    .order-item-img-placeholder {
+        width: 52px; height: 52px; border-radius: 8px;
+        background: #f0f0f0; flex-shrink: 0;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 1.4rem;
+    }
+    .order-item-info { min-width: 0; }
+    .order-item-name {
+        font-size: 0.83rem; font-weight: 600; color: #333;
+        white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        max-width: 150px;
+    }
+    .order-item-meta { font-size: 0.75rem; color: #999; margin-top: 3px; }
+
+    /* Empty state */
+    .orders-empty { text-align: center; padding: 70px 0; color: #ccc; }
+    .orders-empty .empty-icon { font-size: 3rem; margin-bottom: 12px; }
+    .orders-empty p { font-size: 1rem; color: #bbb; margin-bottom: 20px; }
+
+    @media (max-width: 576px) {
+        .order-card-header { flex-direction: column; align-items: flex-start; }
+        .order-item-img, .order-item-img-placeholder { width: 44px; height: 44px; }
+        .order-item-name { max-width: 110px; }
+    }
+</style>
+
+<main role="main">
+    <div class="container orders-wrap">
+
+        <h3>My Orders</h3>
+        <p class="subtitle">Your complete purchase history</p>
 
         {{ if not $.orders }}
-        <div class="row">
-            <div class="col-12 text-center" style="padding: 60px 0;">
-                <p style="font-size:1.1rem; color:#aaa;">You haven't placed any orders yet.</p>
-                <a href="{{ $.baseUrl }}/" class="cymbal-button-primary" role="button" style="margin-top:16px;">
-                    Start Shopping
-                </a>
-            </div>
+        <div class="orders-empty">
+            <div class="empty-icon">&#128666;</div>
+            <p>You haven't placed any orders yet.</p>
+            <a href="{{ $.baseUrl }}/" class="cymbal-button-primary" role="button">Start Shopping</a>
         </div>
         {{ else }}
 
         {{ range $.orders }}
-        <div class="row" style="border:1px solid #e8e8e8; border-radius:12px; padding:24px; margin-bottom:20px; background:#fff;">
+        <div class="order-card">
 
-            <!-- Order header -->
-            <div class="col-12 col-md-8">
-                <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:8px;">
-                    <span style="font-weight:600; font-size:0.95rem;">Order #{{ index . "order_id" }}</span>
-                    <span style="font-size:0.8rem; color:#888; background:#f4f4f4; padding:2px 10px; border-radius:20px;">
-                        {{ index . "created_at" }}
-                    </span>
+            <div class="order-card-header">
+                <div class="order-meta">
+                    <span class="order-id">Order #{{ index . "order_id" }}</span>
+                    <span class="order-date">{{ index . "created_at" }}</span>
                 </div>
-                <div style="font-size:0.85rem; color:#666; margin-bottom:4px;">
-                    Tracking: <strong>{{ index . "tracking_id" }}</strong>
-                </div>
-                {{ with index . "shipping_addr" }}
-                {{ if . }}
-                <div style="font-size:0.82rem; color:#999;">
-                    Shipped to: {{ index . "street" }}, {{ index . "city" }}, {{ index . "country" }}
-                </div>
-                {{ end }}
-                {{ end }}
+                <span class="order-total">{{ index . "total_paid" }}</span>
             </div>
 
-            <!-- Total -->
-            <div class="col-12 col-md-4 text-md-right" style="margin-top:8px;">
-                <span style="font-size:1.15rem; font-weight:700; color:#333;">
-                    {{ index . "total_paid" }}
-                </span>
+            <div class="order-tracking">
+                Tracking: <strong>{{ index . "tracking_id" }}</strong>
+                {{ with index . "shipping_addr" }}{{ if . }}
+                &nbsp;&middot;&nbsp; {{ index . "city" }}, {{ index . "country" }}
+                {{ end }}{{ end }}
             </div>
 
-            <!-- Items -->
-            {{ with index . "items" }}
-            {{ if . }}
-            <div class="col-12" style="margin-top:16px; border-top:1px solid #f0f0f0; padding-top:16px;">
-                <div style="font-size:0.82rem; color:#999; margin-bottom:8px; text-transform:uppercase; letter-spacing:0.05em;">Items</div>
+            {{ with index . "items" }}{{ if . }}
+            <div class="order-items">
                 {{ range . }}
-                <div style="display:flex; justify-content:space-between; font-size:0.88rem; padding:4px 0; border-bottom:1px solid #fafafa;">
-                    <span style="color:#444;">{{ index . "name" }} &times; {{ index . "quantity" }}</span>
-                    <span style="color:#888;">{{ index . "price" }}</span>
+                <div class="order-item">
+                    {{ $pic := index . "picture" }}
+                    {{ if $pic }}
+                    <img class="order-item-img"
+                         src="{{ $pic }}"
+                         alt="{{ index . "name" }}"
+                         onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"/>
+                    <div class="order-item-img-placeholder" style="display:none;">&#128722;</div>
+                    {{ else }}
+                    <div class="order-item-img-placeholder">&#128722;</div>
+                    {{ end }}
+                    <div class="order-item-info">
+                        <div class="order-item-name">{{ index . "name" }}</div>
+                        <div class="order-item-meta">
+                            Qty: {{ index . "quantity" }} &nbsp;&middot;&nbsp; {{ index . "price" }}
+                        </div>
+                    </div>
                 </div>
                 {{ end }}
             </div>
-            {{ end }}
-            {{ end }}
+            {{ end }}{{ end }}
 
         </div>
         {{ end }}
 
         {{ end }}
 
-        <div class="row mt-4">
-            <div class="col-12">
-                <a href="{{ $.baseUrl }}/" style="font-size:0.9rem; color:#c06080; text-decoration:none;">
-                    &larr; Continue Shopping
-                </a>
-            </div>
-        </div>
+        <a href="{{ $.baseUrl }}/" style="font-size:0.88rem; color:#c06080; text-decoration:none; display:inline-block; margin-top:8px;">
+            &larr; Continue Shopping
+        </a>
 
-    </section>
+    </div>
 </main>
 
 {{ template "footer" . }}

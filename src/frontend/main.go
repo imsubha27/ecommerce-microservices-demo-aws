@@ -160,6 +160,7 @@ func main() {
 	r.HandleFunc(baseUrl + "/assistant", svc.assistantHandler).Methods(http.MethodGet)
 	r.HandleFunc(baseUrl + "/login", svc.loginHandler).Methods(http.MethodGet, http.MethodPost)
 	r.HandleFunc(baseUrl + "/register", svc.registerHandler).Methods(http.MethodGet, http.MethodPost)
+	r.HandleFunc(baseUrl + "/metrics", svc.metricsHandler).Methods(http.MethodGet)
 	r.PathPrefix(baseUrl + "/static/").Handler(http.StripPrefix(baseUrl + "/static/", http.FileServer(http.Dir("./static/"))))
 	r.HandleFunc(baseUrl + "/robots.txt", func(w http.ResponseWriter, _ *http.Request) { fmt.Fprint(w, "User-agent: *\nDisallow: /") })
 	r.HandleFunc(baseUrl + "/_healthz", func(w http.ResponseWriter, _ *http.Request) { fmt.Fprint(w, "ok") })

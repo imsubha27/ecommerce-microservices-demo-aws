@@ -27,6 +27,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -92,6 +93,7 @@ func setAuthCookies(w http.ResponseWriter, token, username string) {
 // ── handlers ─────────────────────────────────────────────────────────────────
 
 func (fe *frontendServer) homeHandler(w http.ResponseWriter, r *http.Request) {
+	atomic.AddInt64(&metricsReqTotal, 1)
 	log := r.Context().Value(ctxKeyLog{}).(logrus.FieldLogger)
 	log.WithField("currency", currentCurrency(r)).Info("home")
 	currencies, err := fe.getCurrencies(r.Context())
@@ -834,4 +836,30 @@ func (fe *frontendServer) profileHandler(w http.ResponseWriter, r *http.Request)
 	})); err != nil {
 		log.WithError(err).Error("error rendering profile template")
 	}
+}
+
+// metricsHandler exposes a basic Prometheus-compatible /metrics endpoint.
+// Uses only the standard library — no extra dependency needed.
+// Tracks: uptime, total HTTP requests served, Go runtime info.
+var (
+	metricsStartTime   = time.Now()
+	metricsReqTotal    int64
+)
+
+func (fe *frontendServer) metricsHandler(w http.ResponseWriter, r *http.Request) {
+	uptimeSeconds := time.Since(metricsStartTime).Seconds()
+
+	w.Header().Set("Content-Type", "text/plain; version=0.0.4; charset=utf-8")
+	fmt.Fprintf(w, `# HELP frontend_uptime_seconds Time since the frontend started.
+# TYPE frontend_uptime_seconds gauge
+frontend_uptime_seconds %.2f
+
+# HELP frontend_requests_total Total HTTP requests handled (excluding /metrics).
+# TYPE frontend_requests_total counter
+frontend_requests_total %d
+
+# HELP frontend_build_info Static build info.
+# TYPE frontend_build_info gauge
+frontend_build_info{service="frontend"} 1
+`, uptimeSeconds, metricsReqTotal)
 }

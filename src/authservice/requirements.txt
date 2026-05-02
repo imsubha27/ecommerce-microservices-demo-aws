@@ -3,4 +3,5 @@ flask==3.1.2
 psycopg2-binary==2.9.11
 PyJWT==2.10.1
 boto3
-dotenv
+python-dotenv==1.0.1
+prometheus-flask-exporter==0.23.1
