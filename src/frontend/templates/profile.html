@@ -45,6 +45,16 @@
           <div style="font-size:0.9rem; color:#333; padding:8px 12px; background:#fafafa; border:1px solid #eee; border-radius:6px;">{{ $.username }}</div>
         </div>
 
+        <!-- FIX: email was missing from the original profile page.
+             It is now decoded from the JWT claims in injectCommonTemplateData
+             and passed to every template as $.email. -->
+        {{ if $.email }}
+        <div>
+          <label style="font-size:0.75rem; font-weight:700; color:#999; text-transform:uppercase; letter-spacing:0.5px; display:block; margin-bottom:4px;">Email</label>
+          <div style="font-size:0.9rem; color:#333; padding:8px 12px; background:#fafafa; border:1px solid #eee; border-radius:6px;">{{ $.email }}</div>
+        </div>
+        {{ end }}
+
         <div>
           <label style="font-size:0.75rem; font-weight:700; color:#999; text-transform:uppercase; letter-spacing:0.5px; display:block; margin-bottom:4px;">Preferred Currency</label>
           <div style="font-size:0.9rem; color:#333; padding:8px 12px; background:#fafafa; border:1px solid #eee; border-radius:6px;">{{ $.user_currency }}</div>

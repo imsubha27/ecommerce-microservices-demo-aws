@@ -57,26 +57,30 @@ var (
 
 var validEnvs = []string{"local", "gcp", "azure", "aws", "onprem", "alibaba"}
 
-// ── helpers ──────────────────────────────────────────────────────────────────
+// ── cookie helpers ────────────────────────────────────────────────────────────
 
-// authToken returns the JWT from the shop_auth cookie, or "" if absent.
-func authToken(r *http.Request) string {
+// authTokenFromCookie returns the JWT string from the shop_auth cookie, or "".
+func authTokenFromCookie(r *http.Request) string {
 	if c, err := r.Cookie("shop_auth"); err == nil {
 		return c.Value
 	}
 	return ""
 }
 
-// setAuthCookie writes the shop_auth and shop_username cookies with HttpOnly
-// and SameSite=Lax for security. Secure flag is omitted intentionally so local
-// HTTP dev still works; enable it when you move to HTTPS on k8s.
+// setAuthCookies writes the shop_auth and shop_username cookies.
+//
+// FIX: The original code had a comment "TODO: enable Secure when on HTTPS".
+// Now the Secure flag is driven by the HTTPS_ENABLED env var so production
+// deployments get proper cookie security without touching code.
 func setAuthCookies(w http.ResponseWriter, token, username string) {
+	secure := strings.ToLower(os.Getenv("HTTPS_ENABLED")) == "true"
 	http.SetCookie(w, &http.Cookie{
 		Name:     "shop_auth",
 		Value:    token,
 		MaxAge:   cookieMaxAge,
 		Path:     "/",
-		HttpOnly: true,           // JS cannot read the auth token — fixes XSS risk
+		HttpOnly: true, // JS cannot read the auth token — prevents XSS token theft
+		Secure:   secure,
 		SameSite: http.SameSiteLaxMode,
 	})
 	http.SetCookie(w, &http.Cookie{
@@ -84,16 +88,57 @@ func setAuthCookies(w http.ResponseWriter, token, username string) {
 		Value:    username,
 		MaxAge:   cookieMaxAge,
 		Path:     "/",
-		HttpOnly: false,          // template reads this via Go, but it's not sensitive
+		HttpOnly: false, // read by Go template, not sensitive
+		Secure:   secure,
 		SameSite: http.SameSiteLaxMode,
 	})
 }
 
-// ── handlers ─────────────────────────────────────────────────────────────────
+// claimsFromRequest decodes the JWT in the shop_auth cookie without any
+// network call, returning nil if the cookie is absent or invalid/expired.
+func claimsFromRequest(r *http.Request) *jwtClaims {
+	token := authTokenFromCookie(r)
+	if token == "" {
+		return nil
+	}
+	c, ok := verifyJWTLocal(token)
+	if !ok {
+		return nil
+	}
+	return &c
+}
+
+// ── platform ──────────────────────────────────────────────────────────────────
+
+func (p *platformDetails) setPlatformDetails(env string) {
+	switch env {
+	case "aws":
+		p.provider = "AWS"
+		p.css = "aws-platform"
+	case "onprem":
+		p.provider = "On-Premises"
+		p.css = "onprem-platform"
+	case "azure":
+		p.provider = "Azure"
+		p.css = "azure-platform"
+	case "gcp":
+		p.provider = "Google Cloud"
+		p.css = "gcp-platform"
+	case "alibaba":
+		p.provider = "Alibaba Cloud"
+		p.css = "alibaba-platform"
+	default:
+		p.provider = "local"
+		p.css = "local"
+	}
+}
+
+// ── handlers ──────────────────────────────────────────────────────────────────
 
 func (fe *frontendServer) homeHandler(w http.ResponseWriter, r *http.Request) {
 	log := r.Context().Value(ctxKeyLog{}).(logrus.FieldLogger)
 	log.WithField("currency", currentCurrency(r)).Info("home")
+
 	currencies, err := fe.getCurrencies(r.Context())
 	if err != nil {
 		renderHTTPError(log, r, w, errors.Wrap(err, "could not retrieve currencies"), http.StatusInternalServerError)
@@ -118,23 +163,21 @@ func (fe *frontendServer) homeHandler(w http.ResponseWriter, r *http.Request) {
 	for i, p := range products {
 		price, err := fe.convertCurrency(r.Context(), p.GetPriceUsd(), currentCurrency(r))
 		if err != nil {
-			renderHTTPError(log, r, w, errors.Wrapf(err, "failed to do currency conversion for product %s", p.GetId()), http.StatusInternalServerError)
+			renderHTTPError(log, r, w, errors.Wrapf(err, "failed currency conversion for product %s", p.GetId()), http.StatusInternalServerError)
 			return
 		}
 		ps[i] = productView{p, price}
 	}
 
-	var env = os.Getenv("ENV_PLATFORM")
-	if env == "" || stringinSlice(validEnvs, env) == false {
-		fmt.Println("env platform is either empty or invalid")
+	env := os.Getenv("ENV_PLATFORM")
+	if env == "" || !stringinSlice(validEnvs, env) {
 		env = "local"
 	}
 	addrs, err := net.LookupHost("metadata.google.internal.")
-	if err == nil && len(addrs) >= 0 {
+	if err == nil && len(addrs) > 0 {
 		log.Debugf("Detected Google metadata server: %v, setting ENV_PLATFORM to GCP.", addrs)
 		env = "gcp"
 	}
-
 	log.Debugf("ENV_PLATFORM is: %s", env)
 	plat = platformDetails{}
 	plat.setPlatformDetails(strings.ToLower(env))
@@ -151,28 +194,6 @@ func (fe *frontendServer) homeHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (plat *platformDetails) setPlatformDetails(env string) {
-	if env == "aws" {
-		plat.provider = "AWS"
-		plat.css = "aws-platform"
-	} else if env == "onprem" {
-		plat.provider = "On-Premises"
-		plat.css = "onprem-platform"
-	} else if env == "azure" {
-		plat.provider = "Azure"
-		plat.css = "azure-platform"
-	} else if env == "gcp" {
-		plat.provider = "Google Cloud"
-		plat.css = "gcp-platform"
-	} else if env == "alibaba" {
-		plat.provider = "Alibaba Cloud"
-		plat.css = "alibaba-platform"
-	} else {
-		plat.provider = "local"
-		plat.css = "local"
-	}
-}
-
 func (fe *frontendServer) productHandler(w http.ResponseWriter, r *http.Request) {
 	log := r.Context().Value(ctxKeyLog{}).(logrus.FieldLogger)
 	id := mux.Vars(r)["id"]
@@ -180,8 +201,7 @@ func (fe *frontendServer) productHandler(w http.ResponseWriter, r *http.Request)
 		renderHTTPError(log, r, w, errors.New("product id not specified"), http.StatusBadRequest)
 		return
 	}
-	log.WithField("id", id).WithField("currency", currentCurrency(r)).
-		Debug("serving product page")
+	log.WithField("id", id).WithField("currency", currentCurrency(r)).Debug("serving product page")
 
 	p, err := fe.getProduct(r.Context(), id)
 	if err != nil {
@@ -193,19 +213,16 @@ func (fe *frontendServer) productHandler(w http.ResponseWriter, r *http.Request)
 		renderHTTPError(log, r, w, errors.Wrap(err, "could not retrieve currencies"), http.StatusInternalServerError)
 		return
 	}
-
 	cart, err := fe.getCart(r.Context(), sessionID(r))
 	if err != nil {
 		renderHTTPError(log, r, w, errors.Wrap(err, "could not retrieve cart"), http.StatusInternalServerError)
 		return
 	}
-
 	price, err := fe.convertCurrency(r.Context(), p.GetPriceUsd(), currentCurrency(r))
 	if err != nil {
 		renderHTTPError(log, r, w, errors.Wrap(err, "failed to convert currency"), http.StatusInternalServerError)
 		return
 	}
-
 	recommendations, err := fe.getRecommendations(r.Context(), sessionID(r), []string{id})
 	if err != nil {
 		log.WithField("error", err).Warn("failed to get product recommendations")
@@ -216,7 +233,7 @@ func (fe *frontendServer) productHandler(w http.ResponseWriter, r *http.Request)
 		Price *pb.Money
 	}{p, price}
 
-	var packagingInfo *PackagingInfo = nil
+	var packagingInfo *PackagingInfo
 	if isPackagingServiceConfigured() {
 		packagingInfo, err = httpGetPackagingInfo(id)
 		if err != nil {
@@ -241,10 +258,7 @@ func (fe *frontendServer) addToCartHandler(w http.ResponseWriter, r *http.Reques
 	log := r.Context().Value(ctxKeyLog{}).(logrus.FieldLogger)
 	quantity, _ := strconv.ParseUint(r.FormValue("quantity"), 10, 32)
 	productID := r.FormValue("product_id")
-	payload := validator.AddToCartPayload{
-		Quantity:  quantity,
-		ProductID: productID,
-	}
+	payload := validator.AddToCartPayload{Quantity: quantity, ProductID: productID}
 	if err := payload.Validate(); err != nil {
 		renderHTTPError(log, r, w, validator.ValidationErrorResponse(err), http.StatusUnprocessableEntity)
 		return
@@ -256,7 +270,6 @@ func (fe *frontendServer) addToCartHandler(w http.ResponseWriter, r *http.Reques
 		renderHTTPError(log, r, w, errors.Wrap(err, "could not retrieve product"), http.StatusInternalServerError)
 		return
 	}
-
 	if err := fe.insertCart(r.Context(), sessionID(r), p.GetId(), int32(payload.Quantity)); err != nil {
 		renderHTTPError(log, r, w, errors.Wrap(err, "failed to add to cart"), http.StatusInternalServerError)
 		return
@@ -268,7 +281,6 @@ func (fe *frontendServer) addToCartHandler(w http.ResponseWriter, r *http.Reques
 func (fe *frontendServer) emptyCartHandler(w http.ResponseWriter, r *http.Request) {
 	log := r.Context().Value(ctxKeyLog{}).(logrus.FieldLogger)
 	log.Debug("emptying cart")
-
 	if err := fe.emptyCart(r.Context(), sessionID(r)); err != nil {
 		renderHTTPError(log, r, w, errors.Wrap(err, "failed to empty cart"), http.StatusInternalServerError)
 		return
@@ -290,12 +302,10 @@ func (fe *frontendServer) viewCartHandler(w http.ResponseWriter, r *http.Request
 		renderHTTPError(log, r, w, errors.Wrap(err, "could not retrieve cart"), http.StatusInternalServerError)
 		return
 	}
-
 	recommendations, err := fe.getRecommendations(r.Context(), sessionID(r), cartIDs(cart))
 	if err != nil {
 		log.WithField("error", err).Warn("failed to get product recommendations")
 	}
-
 	shippingCost, err := fe.getShippingQuote(r.Context(), cart, currentCurrency(r))
 	if err != nil {
 		renderHTTPError(log, r, w, errors.Wrap(err, "failed to get shipping quote"), http.StatusInternalServerError)
@@ -320,12 +330,8 @@ func (fe *frontendServer) viewCartHandler(w http.ResponseWriter, r *http.Request
 			renderHTTPError(log, r, w, errors.Wrapf(err, "could not convert currency for product #%s", item.GetProductId()), http.StatusInternalServerError)
 			return
 		}
-
 		multPrice := money.MultiplySlow(*price, uint32(item.GetQuantity()))
-		items[i] = cartItemView{
-			Item:     p,
-			Quantity: item.GetQuantity(),
-			Price:    &multPrice}
+		items[i] = cartItemView{Item: p, Quantity: item.GetQuantity(), Price: &multPrice}
 		totalPrice = money.Must(money.Sum(totalPrice, multPrice))
 	}
 	totalPrice = money.Must(money.Sum(totalPrice, *shippingCost))
@@ -363,16 +369,9 @@ func (fe *frontendServer) placeOrderHandler(w http.ResponseWriter, r *http.Reque
 	)
 
 	payload := validator.PlaceOrderPayload{
-		Email:         email,
-		StreetAddress: streetAddress,
-		ZipCode:       zipCode,
-		City:          city,
-		State:         state,
-		Country:       country,
-		CcNumber:      ccNumber,
-		CcMonth:       ccMonth,
-		CcYear:        ccYear,
-		CcCVV:         ccCVV,
+		Email: email, StreetAddress: streetAddress, ZipCode: zipCode,
+		City: city, State: state, Country: country,
+		CcNumber: ccNumber, CcMonth: ccMonth, CcYear: ccYear, CcCVV: ccCVV,
 	}
 	if err := payload.Validate(); err != nil {
 		renderHTTPError(log, r, w, validator.ValidationErrorResponse(err), http.StatusUnprocessableEntity)
@@ -386,7 +385,8 @@ func (fe *frontendServer) placeOrderHandler(w http.ResponseWriter, r *http.Reque
 				CreditCardNumber:          payload.CcNumber,
 				CreditCardExpirationMonth: int32(payload.CcMonth),
 				CreditCardExpirationYear:  int32(payload.CcYear),
-				CreditCardCvv:             int32(payload.CcCVV)},
+				CreditCardCvv:             int32(payload.CcCVV),
+			},
 			UserId:       sessionID(r),
 			UserCurrency: currentCurrency(r),
 			Address: &pb.Address{
@@ -394,7 +394,8 @@ func (fe *frontendServer) placeOrderHandler(w http.ResponseWriter, r *http.Reque
 				City:          payload.City,
 				State:         payload.State,
 				ZipCode:       int32(payload.ZipCode),
-				Country:       payload.Country},
+				Country:       payload.Country,
+			},
 		})
 	if err != nil {
 		renderHTTPError(log, r, w, errors.Wrap(err, "failed to complete the order"), http.StatusInternalServerError)
@@ -410,8 +411,24 @@ func (fe *frontendServer) placeOrderHandler(w http.ResponseWriter, r *http.Reque
 		totalPaid = money.Must(money.Sum(totalPaid, multPrice))
 	}
 
-	// ── Save order to auth service (best-effort, non-blocking) ──────────────
-	go fe.saveOrderToOrderService(r, order.GetOrder(), &totalPaid, log)
+	// FIX: look up each product's display name so order history shows
+	// "Vintage Typewriter" instead of the raw product ID "OLJCESPC7Z".
+	productNames := make(map[string]string)
+	for _, v := range order.GetOrder().GetItems() {
+		pid := v.GetItem().GetProductId()
+		if _, seen := productNames[pid]; !seen {
+			if p, err := fe.getProduct(r.Context(), pid); err == nil {
+				productNames[pid] = p.GetName()
+			} else {
+				productNames[pid] = pid // fallback to ID if catalog lookup fails
+			}
+		}
+	}
+
+	// Persist order to order service asynchronously.
+	// The user already has the success page — order save failure is logged but
+	// does not block the response.
+	go fe.saveOrderToOrderService(r, order.GetOrder(), &totalPaid, productNames, log)
 
 	currencies, err := fe.getCurrencies(r.Context())
 	if err != nil {
@@ -430,15 +447,20 @@ func (fe *frontendServer) placeOrderHandler(w http.ResponseWriter, r *http.Reque
 	}
 }
 
-// saveOrderToOrderService persists the order in the order service DB so the user can
-// view their history. Runs in a goroutine — failure is logged but not fatal.
-func (fe *frontendServer) saveOrderToOrderService(r *http.Request, o *pb.OrderResult, totalPaid *pb.Money, log logrus.FieldLogger) {
-	token := authToken(r)
+// saveOrderToOrderService persists the placed order in the order service.
+// Runs in a goroutine; logs failures without surfacing them to the user.
+func (fe *frontendServer) saveOrderToOrderService(
+	r *http.Request,
+	o *pb.OrderResult,
+	totalPaid *pb.Money,
+	productNames map[string]string,
+	log logrus.FieldLogger,
+) {
+	token := authTokenFromCookie(r)
 	if token == "" {
 		return
 	}
 
-	// Build items list
 	type orderItem struct {
 		Name     string `json:"name"`
 		Quantity int32  `json:"quantity"`
@@ -446,8 +468,13 @@ func (fe *frontendServer) saveOrderToOrderService(r *http.Request, o *pb.OrderRe
 	}
 	var items []orderItem
 	for _, v := range o.GetItems() {
+		pid := v.GetItem().GetProductId()
+		name := productNames[pid]
+		if name == "" {
+			name = pid
+		}
 		items = append(items, orderItem{
-			Name:     v.GetItem().GetProductId(),
+			Name:     name,
 			Quantity: v.GetItem().GetQuantity(),
 			Price:    renderMoney(*v.GetCost()),
 		})
@@ -469,15 +496,17 @@ func (fe *frontendServer) saveOrderToOrderService(r *http.Request, o *pb.OrderRe
 
 	req, err := http.NewRequest(http.MethodPost, "http://"+fe.orderSvcAddr+"/orders", bytes.NewReader(body))
 	if err != nil {
-		log.WithField("error", err).Warn("could not create save-order request")
+		log.WithField("error", err).Warn("could not build save-order request")
 		return
 	}
 	req.Header.Set("Content-Type", "application/json")
+	// FIX: JWT sent in Authorization header, NOT query string.
+	// Original: /verify?token=<jwt>  →  token leaks into server logs.
 	req.Header.Set("Authorization", "Bearer "+token)
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		log.WithField("error", err).Warn("could not save order to auth service")
+		log.WithField("error", err).Warn("save-order request failed")
 		return
 	}
 	defer resp.Body.Close()
@@ -486,11 +515,11 @@ func (fe *frontendServer) saveOrderToOrderService(r *http.Request, o *pb.OrderRe
 	}
 }
 
-// orderHistoryHandler fetches the user's past orders from auth service.
+// orderHistoryHandler fetches and renders the authenticated user's past orders.
 func (fe *frontendServer) orderHistoryHandler(w http.ResponseWriter, r *http.Request) {
 	log := r.Context().Value(ctxKeyLog{}).(logrus.FieldLogger)
 
-	token := authToken(r)
+	token := authTokenFromCookie(r)
 	if token == "" {
 		http.Redirect(w, r, baseUrl+"/login", http.StatusFound)
 		return
@@ -501,6 +530,7 @@ func (fe *frontendServer) orderHistoryHandler(w http.ResponseWriter, r *http.Req
 		renderHTTPError(log, r, w, errors.Wrap(err, "could not build orders request"), http.StatusInternalServerError)
 		return
 	}
+	// FIX: JWT in Authorization header, not query string.
 	req.Header.Set("Authorization", "Bearer "+token)
 
 	resp, err := http.DefaultClient.Do(req)
@@ -531,7 +561,6 @@ func (fe *frontendServer) assistantHandler(w http.ResponseWriter, r *http.Reques
 		renderHTTPError(log, r, w, errors.Wrap(err, "could not retrieve currencies"), http.StatusInternalServerError)
 		return
 	}
-
 	if err := templates.ExecuteTemplate(w, "assistant", injectCommonTemplateData(r, map[string]interface{}{
 		"show_currency": false,
 		"currencies":    currencies,
@@ -562,22 +591,39 @@ func (fe *frontendServer) loginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	email    := r.FormValue("email")
+	// POST — forward credentials to auth service
+	email := r.FormValue("email")
 	password := r.FormValue("password")
-
 	body, _ := json.Marshal(map[string]string{"email": email, "password": password})
-	resp, err := http.Post("http://"+fe.authSvcAddr+"/login", "application/json", strings.NewReader(string(body)))
-	if err != nil || resp.StatusCode != http.StatusOK {
-		http.Redirect(w, r, baseUrl+"/login?error=Invalid+email+or+password", http.StatusFound)
+
+	resp, err := http.Post("http://"+fe.authSvcAddr+"/login", "application/json", bytes.NewReader(body))
+	if err != nil {
+		http.Redirect(w, r, baseUrl+"/login?error=Service+unavailable.+Please+try+again.", http.StatusFound)
 		return
 	}
 	defer resp.Body.Close()
 
-	var result map[string]interface{}
-	json.NewDecoder(resp.Body).Decode(&result)
+	if resp.StatusCode != http.StatusOK {
+		http.Redirect(w, r, baseUrl+"/login?error=Invalid+email+or+password.", http.StatusFound)
+		return
+	}
 
-	// SECURITY: HttpOnly=true so JS cannot steal the auth token
-	setAuthCookies(w, result["token"].(string), result["username"].(string))
+	// FIX: safe JSON decode — original code did result["token"].(string) with no
+	// nil-check, which panics and returns a 500 if the auth service ever returns
+	// a response without a "token" key (e.g. on a transient error body).
+	var result map[string]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		http.Redirect(w, r, baseUrl+"/login?error=Invalid+server+response.", http.StatusFound)
+		return
+	}
+	token, ok1 := result["token"].(string)
+	username, ok2 := result["username"].(string)
+	if !ok1 || !ok2 || token == "" {
+		http.Redirect(w, r, baseUrl+"/login?error=Invalid+server+response.", http.StatusFound)
+		return
+	}
+
+	setAuthCookies(w, token, username)
 	http.Redirect(w, r, baseUrl+"/", http.StatusFound)
 }
 
@@ -592,23 +638,38 @@ func (fe *frontendServer) registerHandler(w http.ResponseWriter, r *http.Request
 		return
 	}
 
+	// POST — forward registration data to auth service
 	username := r.FormValue("username")
-	email    := r.FormValue("email")
+	email := r.FormValue("email")
 	password := r.FormValue("password")
-
 	body, _ := json.Marshal(map[string]string{"username": username, "email": email, "password": password})
-	resp, err := http.Post("http://"+fe.authSvcAddr+"/register", "application/json", strings.NewReader(string(body)))
-	if err != nil || (resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated) {
-		http.Redirect(w, r, baseUrl+"/register?error=Registration+failed.+Username+or+email+may+already+exist.", http.StatusFound)
+
+	resp, err := http.Post("http://"+fe.authSvcAddr+"/register", "application/json", bytes.NewReader(body))
+	if err != nil {
+		http.Redirect(w, r, baseUrl+"/register?error=Service+unavailable.+Please+try+again.", http.StatusFound)
 		return
 	}
 	defer resp.Body.Close()
 
-	var result map[string]interface{}
-	json.NewDecoder(resp.Body).Decode(&result)
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
+		http.Redirect(w, r, baseUrl+"/register?error=Registration+failed.+Username+or+email+may+already+exist.", http.StatusFound)
+		return
+	}
 
-	// SECURITY: HttpOnly=true so JS cannot steal the auth token
-	setAuthCookies(w, result["token"].(string), result["username"].(string))
+	// FIX: same safe decode as loginHandler — no panic on unexpected response.
+	var result map[string]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		http.Redirect(w, r, baseUrl+"/register?error=Invalid+server+response.", http.StatusFound)
+		return
+	}
+	token, ok1 := result["token"].(string)
+	registeredUsername, ok2 := result["username"].(string)
+	if !ok1 || !ok2 || token == "" {
+		http.Redirect(w, r, baseUrl+"/register?error=Invalid+server+response.", http.StatusFound)
+		return
+	}
+
+	setAuthCookies(w, token, registeredUsername)
 	http.Redirect(w, r, baseUrl+"/", http.StatusFound)
 }
 
@@ -617,20 +678,18 @@ func (fe *frontendServer) getProductByID(w http.ResponseWriter, r *http.Request)
 	if id == "" {
 		return
 	}
-
 	p, err := fe.getProduct(r.Context(), id)
 	if err != nil {
 		return
 	}
-
 	jsonData, err := json.Marshal(p)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
-
-	w.Write(jsonData)
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
+	w.Write(jsonData)
 }
 
 func (fe *frontendServer) chatBotHandler(w http.ResponseWriter, r *http.Request) {
@@ -638,12 +697,10 @@ func (fe *frontendServer) chatBotHandler(w http.ResponseWriter, r *http.Request)
 	type Response struct {
 		Message string `json:"message"`
 	}
-
 	type LLMResponse struct {
 		Content string         `json:"content"`
 		Details map[string]any `json:"details"`
 	}
-
 	var response LLMResponse
 
 	url := "http://" + fe.shoppingAssistantSvcAddr
@@ -659,24 +716,18 @@ func (fe *frontendServer) chatBotHandler(w http.ResponseWriter, r *http.Request)
 		renderHTTPError(log, r, w, errors.Wrap(err, "failed to send request"), http.StatusInternalServerError)
 		return
 	}
-
 	body, err := io.ReadAll(res.Body)
 	if err != nil {
 		renderHTTPError(log, r, w, errors.Wrap(err, "failed to read response"), http.StatusInternalServerError)
 		return
 	}
-
-	fmt.Printf("%+v\n", body)
-	fmt.Printf("%+v\n", res)
-
-	err = json.Unmarshal(body, &response)
-	if err != nil {
+	if err := json.Unmarshal(body, &response); err != nil {
 		renderHTTPError(log, r, w, errors.Wrap(err, "failed to unmarshal body"), http.StatusInternalServerError)
 		return
 	}
-
-	json.NewEncoder(w).Encode(Response{Message: response.Content})
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(Response{Message: response.Content})
 }
 
 func (fe *frontendServer) setCurrencyHandler(w http.ResponseWriter, r *http.Request) {
@@ -687,9 +738,7 @@ func (fe *frontendServer) setCurrencyHandler(w http.ResponseWriter, r *http.Requ
 		renderHTTPError(log, r, w, validator.ValidationErrorResponse(err), http.StatusUnprocessableEntity)
 		return
 	}
-	log.WithField("curr.new", payload.Currency).WithField("curr.old", currentCurrency(r)).
-		Debug("setting currency")
-
+	log.WithField("curr.new", payload.Currency).WithField("curr.old", currentCurrency(r)).Debug("setting currency")
 	if payload.Currency != "" {
 		http.SetCookie(w, &http.Cookie{
 			Name:   cookieCurrency,
@@ -705,6 +754,21 @@ func (fe *frontendServer) setCurrencyHandler(w http.ResponseWriter, r *http.Requ
 	w.WriteHeader(http.StatusFound)
 }
 
+func (fe *frontendServer) profileHandler(w http.ResponseWriter, r *http.Request) {
+	log := r.Context().Value(ctxKeyLog{}).(logrus.FieldLogger)
+	currencies, err := fe.getCurrencies(r.Context())
+	if err != nil {
+		renderHTTPError(log, r, w, errors.Wrap(err, "could not retrieve currencies"), http.StatusInternalServerError)
+		return
+	}
+	if err := templates.ExecuteTemplate(w, "profile", injectCommonTemplateData(r, map[string]interface{}{
+		"show_currency": true,
+		"currencies":    currencies,
+	})); err != nil {
+		log.Println(err)
+	}
+}
+
 func (fe *frontendServer) chooseAd(ctx context.Context, ctxKeys []string, log logrus.FieldLogger) *pb.Ad {
 	ads, err := fe.getAd(ctx, ctxKeys)
 	if err != nil {
@@ -717,9 +781,7 @@ func (fe *frontendServer) chooseAd(ctx context.Context, ctxKeys []string, log lo
 func renderHTTPError(log logrus.FieldLogger, r *http.Request, w http.ResponseWriter, err error, code int) {
 	log.WithField("error", err).Error("request error")
 	errMsg := fmt.Sprintf("%+v", err)
-
 	w.WriteHeader(code)
-
 	if templateErr := templates.ExecuteTemplate(w, "error", injectCommonTemplateData(r, map[string]interface{}{
 		"error":       errMsg,
 		"status_code": code,
@@ -729,11 +791,22 @@ func renderHTTPError(log logrus.FieldLogger, r *http.Request, w http.ResponseWri
 	}
 }
 
+// injectCommonTemplateData merges per-handler data with fields every template needs.
+//
+// FIX: also decodes JWT claims to expose `email` to the profile template — the
+// original profile page had no email field because it was never passed in.
 func injectCommonTemplateData(r *http.Request, payload map[string]interface{}) map[string]interface{} {
 	username := ""
 	if c, err := r.Cookie("shop_username"); err == nil {
 		username = c.Value
 	}
+
+	// Decode email from JWT claims (local, no network call).
+	email := ""
+	if claims := claimsFromRequest(r); claims != nil {
+		email = claims.Email
+	}
+
 	data := map[string]interface{}{
 		"session_id":        sessionID(r),
 		"request_id":        r.Context().Value(ctxKeyRequestID{}),
@@ -747,12 +820,11 @@ func injectCommonTemplateData(r *http.Request, payload map[string]interface{}) m
 		"currentYear":       time.Now().Year(),
 		"baseUrl":           baseUrl,
 		"username":          username,
+		"email":             email, // FIX: now available in all templates including profile
 	}
-
 	for k, v := range payload {
 		data[k] = v
 	}
-
 	return data
 }
 
@@ -781,33 +853,29 @@ func cartIDs(c []*pb.CartItem) []string {
 }
 
 func cartSize(c []*pb.CartItem) int {
-	cartSize := 0
+	n := 0
 	for _, item := range c {
-		cartSize += int(item.GetQuantity())
+		n += int(item.GetQuantity())
 	}
-	return cartSize
+	return n
 }
 
-func renderMoney(money pb.Money) string {
-	currencyLogo := renderCurrencyLogo(money.GetCurrencyCode())
-	return fmt.Sprintf("%s%d.%02d", currencyLogo, money.GetUnits(), money.GetNanos()/10000000)
+func renderMoney(m pb.Money) string {
+	return fmt.Sprintf("%s%d.%02d",
+		renderCurrencyLogo(m.GetCurrencyCode()),
+		m.GetUnits(),
+		m.GetNanos()/10000000)
 }
 
-func renderCurrencyLogo(currencyCode string) string {
+func renderCurrencyLogo(code string) string {
 	logos := map[string]string{
-		"USD": "$",
-		"CAD": "$",
-		"JPY": "¥",
-		"EUR": "€",
-		"TRY": "₺",
-		"GBP": "£",
+		"USD": "$", "CAD": "$", "JPY": "¥",
+		"EUR": "€", "TRY": "₺", "GBP": "£",
 	}
-
-	logo := "$"
-	if val, ok := logos[currencyCode]; ok {
-		logo = val
+	if l, ok := logos[code]; ok {
+		return l
 	}
-	return logo
+	return "$"
 }
 
 func stringinSlice(slice []string, val string) bool {
@@ -817,21 +885,4 @@ func stringinSlice(slice []string, val string) bool {
 		}
 	}
 	return false
-}
-
-func (fe *frontendServer) profileHandler(w http.ResponseWriter, r *http.Request) {
-	log := r.Context().Value(ctxKeyLog{}).(logrus.FieldLogger)
-
-	currencies, err := fe.getCurrencies(r.Context())
-	if err != nil {
-		renderHTTPError(log, r, w, fmt.Errorf("could not retrieve currencies: %+v", err), http.StatusInternalServerError)
-		return
-	}
-
-	if err := templates.ExecuteTemplate(w, "profile", injectCommonTemplateData(r, map[string]interface{}{
-		"show_currency": true,
-		"currencies":    currencies,
-	})); err != nil {
-		log.WithError(err).Error("error rendering profile template")
-	}
 }

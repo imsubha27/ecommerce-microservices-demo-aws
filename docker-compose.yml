@@ -158,6 +158,7 @@ services:
       - SHOPPING_ASSISTANT_SERVICE_ADDR=shoppingassistant:${SHOPPING_ASSISTANT_PORT}
       - AUTH_SERVICE_ADDR=auth:${AUTH_PORT}
       - ORDER_SERVICE_ADDR=order:${ORDER_PORT}
+      - JWT_SECRET=${JWT_SECRET}
       - ENABLE_PROFILER=0
     depends_on:
       ad:

@@ -40,6 +40,22 @@
     }
     .order-total { font-size: 1.05rem; font-weight: 700; color: #222; white-space: nowrap; }
 
+    /* FIX: status badge styles */
+    .order-status {
+        font-size: 0.72rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+        padding: 3px 10px;
+        border-radius: 20px;
+        white-space: nowrap;
+    }
+    .status-placed      { background: #e3f2fd; color: #1565c0; }
+    .status-processing  { background: #fff8e1; color: #f57f17; }
+    .status-shipped     { background: #e8f5e9; color: #2e7d32; }
+    .status-delivered   { background: #f3e5f5; color: #6a1b9a; }
+    .status-cancelled   { background: #fce4ec; color: #c62828; }
+
     .order-tracking {
         padding: 8px 20px;
         font-size: 0.8rem; color: #999;
@@ -119,6 +135,11 @@
                 <div class="order-meta">
                     <span class="order-id">Order #{{ index . "order_id" }}</span>
                     <span class="order-date">{{ index . "created_at" }}</span>
+                    {{/* FIX: show order status badge — new field from order service */}}
+                    {{ $status := index . "status" }}
+                    {{ if $status }}
+                    <span class="order-status status-{{ $status }}">{{ $status }}</span>
+                    {{ end }}
                 </div>
                 <span class="order-total">{{ index . "total_paid" }}</span>
             </div>
