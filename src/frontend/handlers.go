@@ -57,6 +57,12 @@ var (
 
 var validEnvs = []string{"local", "gcp", "azure", "aws", "onprem", "alibaba"}
 
+// productInfo holds catalog data needed when persisting an order item.
+type productInfo struct {
+	name    string
+	picture string
+}
+
 // ── cookie helpers ────────────────────────────────────────────────────────────
 
 // authTokenFromCookie returns the JWT string from the shop_auth cookie, or "".
@@ -411,16 +417,16 @@ func (fe *frontendServer) placeOrderHandler(w http.ResponseWriter, r *http.Reque
 		totalPaid = money.Must(money.Sum(totalPaid, multPrice))
 	}
 
-	// FIX: look up each product's display name so order history shows
-	// "Vintage Typewriter" instead of the raw product ID "OLJCESPC7Z".
-	productNames := make(map[string]string)
+	// Look up each product's display name and picture URL so order history
+	// shows the real name and thumbnail instead of a raw product ID.
+	productInfos := make(map[string]productInfo)
 	for _, v := range order.GetOrder().GetItems() {
 		pid := v.GetItem().GetProductId()
-		if _, seen := productNames[pid]; !seen {
+		if _, seen := productInfos[pid]; !seen {
 			if p, err := fe.getProduct(r.Context(), pid); err == nil {
-				productNames[pid] = p.GetName()
+				productInfos[pid] = productInfo{name: p.GetName(), picture: p.GetPicture()}
 			} else {
-				productNames[pid] = pid // fallback to ID if catalog lookup fails
+				productInfos[pid] = productInfo{name: pid, picture: ""}
 			}
 		}
 	}
@@ -428,7 +434,7 @@ func (fe *frontendServer) placeOrderHandler(w http.ResponseWriter, r *http.Reque
 	// Persist order to order service asynchronously.
 	// The user already has the success page — order save failure is logged but
 	// does not block the response.
-	go fe.saveOrderToOrderService(r, order.GetOrder(), &totalPaid, productNames, log)
+	go fe.saveOrderToOrderService(r, order.GetOrder(), &totalPaid, productInfos, log)
 
 	currencies, err := fe.getCurrencies(r.Context())
 	if err != nil {
@@ -453,7 +459,7 @@ func (fe *frontendServer) saveOrderToOrderService(
 	r *http.Request,
 	o *pb.OrderResult,
 	totalPaid *pb.Money,
-	productNames map[string]string,
+	productInfos map[string]productInfo,
 	log logrus.FieldLogger,
 ) {
 	token := authTokenFromCookie(r)
@@ -465,11 +471,13 @@ func (fe *frontendServer) saveOrderToOrderService(
 		Name     string `json:"name"`
 		Quantity int32  `json:"quantity"`
 		Price    string `json:"price"`
+		Picture  string `json:"picture"`
 	}
 	var items []orderItem
 	for _, v := range o.GetItems() {
 		pid := v.GetItem().GetProductId()
-		name := productNames[pid]
+		info := productInfos[pid]
+		name := info.name
 		if name == "" {
 			name = pid
 		}
@@ -477,6 +485,7 @@ func (fe *frontendServer) saveOrderToOrderService(
 			Name:     name,
 			Quantity: v.GetItem().GetQuantity(),
 			Price:    renderMoney(*v.GetCost()),
+			Picture:  info.picture,
 		})
 	}
 
