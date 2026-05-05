@@ -22,253 +22,335 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, shrink-to-fit=no">
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
-    <title>
-        {{ if $.is_cymbal_brand }}
-        Cymbal Shops
-        {{ else }}
-        Online Boutique
-        {{ end }}
-    </title>
-    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.1/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-WskhaSGFgHYWDcbwN70/dfYBj47jz9qbsMId/iRN3ewGhXQFZCSftd1LZCfmhktB"
-        crossorigin="anonymous">
+    <title>{{ if $.is_cymbal_brand }}Cymbal Shops{{ else }}Online Boutique{{ end }}</title>
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.1/css/bootstrap.min.css" rel="stylesheet"
+          integrity="sha384-WskhaSGFgHYWDcbwN70/dfYBj47jz9qbsMId/iRN3ewGhXQFZCSftd1LZCfmhktB" crossorigin="anonymous">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Google+Symbols:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet" />
     <link rel="stylesheet" type="text/css" href="{{ $.baseUrl }}/static/styles/styles.css">
     <link rel="stylesheet" type="text/css" href="{{ $.baseUrl }}/static/styles/cart.css">
     <link rel="stylesheet" type="text/css" href="{{ $.baseUrl }}/static/styles/order.css">
     <link rel="stylesheet" type="text/css" href="{{ $.baseUrl }}/static/styles/bot.css">
     {{ if $.is_cymbal_brand }}
-    <link rel='shortcut icon' type='image/x-icon' href='{{ $.baseUrl }}/static/favicon-cymbal.ico' />
+    <link rel="shortcut icon" type="image/x-icon" href="{{ $.baseUrl }}/static/favicon-cymbal.ico" />
     {{ else }}
-    <link rel='shortcut icon' type='image/x-icon' href='{{ $.baseUrl }}/static/favicon.ico' />
+    <link rel="shortcut icon" type="image/x-icon" href="{{ $.baseUrl }}/static/favicon.ico" />
     {{ end }}
+
     <style>
-        /* ── Prevent horizontal scroll on all screen sizes ─ */
-        html, body {
-            overflow-x: hidden;
-            max-width: 100%;
-        }
+        html, body { overflow-x: hidden; max-width: 100%; }
 
-        /* ── User dropdown ───────────────────────────────── */
-        .user-nav {
-            display: flex;
-            align-items: center;
-            margin-left: 16px;
-        }
-        .user-dropdown-wrap {
-            position: relative;
-            display: inline-block;
-        }
+        /* ═══════════════════════════════════════════════════
+           DESKTOP STYLES  (unchanged, applies on > 576px)
+        ═══════════════════════════════════════════════════ */
+        .user-nav { display:flex; align-items:center; margin-left:16px; }
+        .user-dropdown-wrap { position:relative; display:inline-block; }
         .user-dropdown-btn {
-            display: flex;
-            align-items: center;
-            gap: 5px;
-            cursor: pointer;
-            font-size: 0.85rem;
-            color: #333;
-            padding: 4px 8px;
-            border-radius: 4px;
-            border: none;
-            background: transparent;
-            font-family: inherit;
-            transition: background 0.12s;
-            white-space: nowrap;
-            user-select: none;
+            display:flex; align-items:center; gap:5px; cursor:pointer;
+            font-size:0.85rem; color:#333; padding:4px 8px;
+            border-radius:4px; border:none; background:transparent;
+            font-family:inherit; transition:background .12s;
+            white-space:nowrap; user-select:none;
         }
-        .user-dropdown-btn:hover { background: #f5f5f5; }
-        .user-dropdown-btn .chevron {
-            font-size: 10px;
-            color: #888;
-            transition: transform 0.2s;
-            display: inline-block;
-        }
-        .user-dropdown-btn.open .chevron { transform: rotate(180deg); }
+        .user-dropdown-btn:hover { background:#f5f5f5; }
+        .user-dropdown-btn .chevron { font-size:10px; color:#888; transition:transform .2s; }
+        .user-dropdown-btn.open .chevron { transform:rotate(180deg); }
         .user-dropdown-menu {
-            display: none;
-            position: absolute;
-            top: calc(100% + 6px);
-            right: 0;
-            background: #fff;
-            border: 1px solid #e0e0e0;
-            border-radius: 6px;
-            min-width: 180px;
-            box-shadow: 0 4px 16px rgba(0,0,0,0.08);
-            z-index: 1000;
-            overflow: hidden;
+            display:none; position:absolute; top:calc(100% + 6px); right:0;
+            background:#fff; border:1px solid #e0e0e0; border-radius:6px;
+            min-width:180px; box-shadow:0 4px 16px rgba(0,0,0,.08);
+            z-index:1000; overflow:hidden;
         }
-        .user-dropdown-menu.open { display: block; }
+        .user-dropdown-menu.open { display:block; }
         .user-dropdown-menu a {
-            display: flex;
-            align-items: center;
-            gap: 9px;
-            padding: 10px 14px;
-            font-size: 0.82rem;
-            color: #333;
-            text-decoration: none;
-            transition: background 0.1s;
+            display:flex; align-items:center; gap:9px;
+            padding:10px 14px; font-size:0.82rem; color:#333;
+            text-decoration:none; transition:background .1s;
         }
-        .user-dropdown-menu a:hover {
-            background: #fce4ec;
-            color: #ad1457;
-            text-decoration: none;
+        .user-dropdown-menu a:hover { background:#fce4ec; color:#ad1457; text-decoration:none; }
+        .user-dropdown-menu a svg { width:15px; height:15px; flex-shrink:0; stroke:#ad1457; fill:none; stroke-width:1.8; }
+        .user-dropdown-menu .dd-divider { height:1px; background:#f0f0f0; margin:3px 0; }
+        .user-dropdown-menu .dd-logout { color:#c62828; }
+        .user-dropdown-menu .dd-logout:hover { background:#fdecea; color:#c62828; }
+        .user-dropdown-menu .dd-logout svg { stroke:#c62828; }
+        .nav-search-form { display:flex; align-items:center; margin-left:10px; }
+        .nav-search-input {
+            width:160px; padding:5px 14px; font-size:.82rem;
+            border:1px solid #e0e0e0; border-radius:20px 0 0 20px;
+            outline:none; font-family:inherit; color:#333; background:#fafafa;
+            transition:border-color .15s, width .2s;
         }
-        .user-dropdown-menu a svg {
-            width: 15px;
-            height: 15px;
-            flex-shrink: 0;
-            stroke: #ad1457;
-            fill: none;
-            stroke-width: 1.8;
+        .nav-search-input:focus { border-color:#ad1457; width:200px; background:#fff; }
+        .nav-search-btn {
+            padding:5px 12px; background:#ad1457; border:none;
+            border-radius:0 20px 20px 0; cursor:pointer;
+            display:flex; align-items:center; transition:background .15s;
         }
-        .user-dropdown-menu .dd-divider {
-            height: 1px;
-            background: #f0f0f0;
-            margin: 3px 0;
-        }
-        .user-dropdown-menu .dd-logout { color: #c62828; }
-        .user-dropdown-menu .dd-logout:hover { background: #fdecea; color: #c62828; }
-        .user-dropdown-menu .dd-logout svg { stroke: #c62828; }
+        .nav-search-btn:hover { background:#880e4f; }
+        .nav-search-btn img { width:15px; height:15px; filter:brightness(0) invert(1); }
 
-        /* ── Mobile (≤ 576px) ───────────────────────────── */
+        /* ═══════════════════════════════════════════════════
+           MOBILE STYLES  (≤ 576px) — Flipkart-inspired
+        ═══════════════════════════════════════════════════ */
         @media (max-width: 576px) {
-            .sub-navbar .container {
-                padding-left: 12px !important;
-                padding-right: 12px !important;
-                flex-wrap: nowrap !important;
+
+            /* Hide the desktop header */
+            .desktop-header { display:none !important; }
+            /* Hide the old hero banner — replaced by category strip */
+            .home-mobile-hero-banner { display:none !important; }
+            /* Reduce product grid top margin */
+            .hot-products-row h3 { margin-top:16px !important; font-size:18px !important; }
+            /* Space for bottom nav */
+            body { padding-bottom:60px; }
+            /* Hide platform badge on mobile — it overlaps content */
+            .local, .aws-platform, .onprem-platform, .gcp-platform, .azure-platform, .alibaba-platform { display:none !important; }
+
+            /* ── Top bar: logo + greeting ── */
+            .mobile-topbar {
+                display:flex; align-items:center; justify-content:space-between;
+                background:#570D2E; padding:10px 14px 6px;
+                position:sticky; top:0; z-index:300;
             }
-            .h-controls { display: none !important; }
-            .user-nav { margin-left: 6px; }
-            .user-dropdown-btn {
-                font-size: 0.78rem;
-                padding: 4px 4px;
-                max-width: 110px;
-                overflow: hidden;
-                text-overflow: ellipsis;
+            .mobile-topbar-logo img {
+                height:26px; filter:brightness(0) invert(1);
             }
-            .user-dropdown-btn strong {
-                max-width: 70px;
-                display: inline-block;
-                overflow: hidden;
-                text-overflow: ellipsis;
-                white-space: nowrap;
-                vertical-align: bottom;
+            .mobile-topbar-greeting {
+                font-size:0.78rem; color:rgba(255,255,255,0.9);
+                white-space:nowrap; max-width:140px; overflow:hidden; text-overflow:ellipsis;
             }
-            .cart-link-always {
-                margin-left: 8px !important;
+            .mobile-topbar-greeting strong { color:#fff; }
+
+            /* ── Search bar ── */
+            .mobile-search-row {
+                background:#570D2E; padding:0 12px 10px;
+                position:sticky; top:46px; z-index:299;
             }
-            .cart-link-always .logo {
-                width: 24px !important;
-                height: 24px !important;
+            .mobile-search-form {
+                display:flex; align-items:center;
+                background:#fff; border-radius:6px; overflow:hidden;
             }
+            .mobile-search-icon { padding:0 10px; display:flex; align-items:center; }
+            .mobile-search-icon img { width:15px; height:15px; opacity:0.4; }
+            .mobile-search-input {
+                flex:1; border:none; outline:none; font-size:0.86rem;
+                padding:9px 2px; font-family:inherit; color:#333; background:transparent;
+            }
+            .mobile-search-btn {
+                padding:9px 14px; background:#570D2E; border:none;
+                color:#fff; font-size:0.78rem; font-weight:700;
+                font-family:inherit; cursor:pointer; letter-spacing:0.3px;
+                border-left:1px solid rgba(255,255,255,0.3);
+            }
+
+
+
+            /* ── Bottom nav bar ── */
+            .mobile-bottom-nav {
+                display:flex !important; position:fixed; bottom:0; left:0; right:0;
+                background:#fff; border-top:2px solid #570D2E;
+                z-index:400; height:56px;
+            }
+            .mobile-bottom-nav a {
+                flex:1; display:flex; flex-direction:column; align-items:center;
+                justify-content:center; text-decoration:none;
+                color:#888; font-size:0.6rem; font-weight:600;
+                gap:3px; transition:color .15s; position:relative;
+            }
+            .mobile-bottom-nav a:hover { color:#570D2E; text-decoration:none; }
+            .mobile-bottom-nav svg {
+                width:22px; height:22px; stroke:currentColor;
+                fill:none; stroke-width:1.7;
+            }
+            .mobile-nav-badge {
+                position:absolute; top:4px; right:calc(50% - 20px);
+                background:#570D2E; color:#fff; font-size:9px; font-weight:700;
+                min-width:16px; height:16px; border-radius:8px; padding:0 3px;
+                display:flex; align-items:center; justify-content:center;
+            }
+        }
+
+        /* Hide mobile elements on desktop */
+        @media (min-width: 577px) {
+            .mobile-topbar, .mobile-search-row,
+            .mobile-categories, .mobile-bottom-nav { display:none !important; }
         }
     </style>
 </head>
 
 <body>
-    <header>
-        {{ if $.frontendMessage }}
-        <div class="navbar">
-            <div class="container d-flex justify-content-center">
-                <div class="h-free-shipping">{{ $.frontendMessage }}</div>
-            </div>
-        </div>
+
+<!-- ════════════════════════════════════════════════
+     MOBILE HEADER  (≤ 576px)
+════════════════════════════════════════════════ -->
+
+<!-- Top bar: logo + greeting -->
+<div class="mobile-topbar">
+    <a href="{{ $.baseUrl }}/" class="mobile-topbar-logo">
+        {{ if $.is_cymbal_brand }}
+        <img src="{{ $.baseUrl }}/static/icons/Cymbal_NavLogo.svg" alt="Cymbal">
+        {{ else }}
+        <img src="{{ $.baseUrl }}/static/icons/Hipster_NavLogo.svg" alt="Online Boutique">
         {{ end }}
+    </a>
+    {{ if $.username }}
+    <span class="mobile-topbar-greeting">Hi, <strong>{{ $.username }}</strong></span>
+    {{ end }}
+</div>
 
-        <div class="navbar sub-navbar">
-            <div class="container d-flex justify-content-between align-items-center">
+{{ if not $.hide_search }}
+<!-- Search bar -->
+<div class="mobile-search-row">
+    <form method="GET" action="{{ $.baseUrl }}/search" class="mobile-search-form">
+        <span class="mobile-search-icon">
+            <img src="{{ $.baseUrl }}/static/icons/Hipster_SearchIcon.svg" alt="">
+        </span>
+        <input type="text" name="q" placeholder="Search for products..."
+               class="mobile-search-input" value="{{ $.search_query }}"
+               aria-label="Search products">
+        <button type="submit" class="mobile-search-btn">Search</button>
+    </form>
+</div>
+{{ end }}
 
-                <a href="{{ $.baseUrl }}/" class="navbar-brand d-flex align-items-center">
-                    {{ if $.is_cymbal_brand }}
-                    <img src="{{ $.baseUrl }}/static/icons/Cymbal_NavLogo.svg" alt="" class="top-left-logo-cymbal" />
-                    {{ else }}
-                    <img src="{{ $.baseUrl }}/static/icons/Hipster_NavLogo.svg" alt="" class="top-left-logo" />
+
+
+<!-- Bottom nav bar -->
+<nav class="mobile-bottom-nav">
+    <a href="{{ $.baseUrl }}/">
+        <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        Home
+    </a>
+    <a href="{{ $.baseUrl }}/orders">
+        <svg viewBox="0 0 24 24"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+        Orders
+    </a>
+    <a href="{{ $.baseUrl }}/profile">
+        <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        Account
+    </a>
+    <a href="{{ $.baseUrl }}/cart">
+        {{ if $.cart_size }}<span class="mobile-nav-badge">{{$.cart_size}}</span>{{ end }}
+        <svg viewBox="0 0 24 24"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+        Cart
+    </a>
+</nav>
+
+<!-- ════════════════════════════════════════════════
+     DESKTOP HEADER  (> 576px)
+════════════════════════════════════════════════ -->
+<header class="desktop-header">
+    {{ if $.frontendMessage }}
+    <div class="navbar">
+        <div class="container d-flex justify-content-center">
+            <div class="h-free-shipping">{{ $.frontendMessage }}</div>
+        </div>
+    </div>
+    {{ end }}
+
+    <div class="navbar sub-navbar">
+        <div class="container d-flex justify-content-between align-items-center">
+
+            <a href="{{ $.baseUrl }}/" class="navbar-brand d-flex align-items-center">
+                {{ if $.is_cymbal_brand }}
+                <img src="{{ $.baseUrl }}/static/icons/Cymbal_NavLogo.svg" alt="" class="top-left-logo-cymbal" />
+                {{ else }}
+                <img src="{{ $.baseUrl }}/static/icons/Hipster_NavLogo.svg" alt="" class="top-left-logo" />
+                {{ end }}
+            </a>
+
+            <div class="controls" style="display:flex; align-items:center; flex-wrap:nowrap;">
+
+                {{ if $.show_currency }}
+                <div class="h-controls">
+                    <div class="h-control">
+                        <span class="icon currency-icon">{{ renderCurrencyLogo $.user_currency }}</span>
+                        <form method="POST" class="controls-form" action="{{ $.baseUrl }}/setCurrency" id="currency_form">
+                            <select name="currency_code" onchange="document.getElementById('currency_form').submit();">
+                                {{range $.currencies}}
+                                <option value="{{.}}" {{if eq . $.user_currency}}selected="selected"{{end}}>{{.}}</option>
+                                {{end}}
+                            </select>
+                        </form>
+                        <img src="{{ $.baseUrl }}/static/icons/Hipster_DownArrow.svg" alt="" class="icon arrow" />
+                    </div>
+                </div>
+                {{ end }}
+
+                {{ if not $.hide_search }}
+                <form method="GET" action="{{ $.baseUrl }}/search" class="nav-search-form">
+                    <input type="text" name="q" placeholder="Search..." class="nav-search-input"
+                           value="{{ $.search_query }}" aria-label="Search products">
+                    <button type="submit" class="nav-search-btn" aria-label="Search">
+                        <img src="{{ $.baseUrl }}/static/icons/Hipster_SearchIcon.svg" alt="Search">
+                    </button>
+                </form>
+                {{ end }}
+
+                {{ if $.assistant_enabled }}
+                <a href="{{ $.baseUrl }}/assistant" class="cart-link">
+                    <img src="{{ $.baseUrl }}/static/icons/Hipster_WandIcon.svg"
+                         style="width:22px;height:22px;" alt="Assistant" class="logo" title="Assistant" />
+                </a>
+                {{ end }}
+
+                {{ if $.username }}
+                <div class="user-nav">
+                    <div class="user-dropdown-wrap">
+                        <button class="user-dropdown-btn" id="userDropdownBtn"
+                                aria-haspopup="true" aria-expanded="false">
+                            Hi, <strong>{{ $.username }}</strong>
+                            <span class="chevron">&#9660;</span>
+                        </button>
+                        <div class="user-dropdown-menu" id="userDropdownMenu" role="menu">
+                            <a href="{{ $.baseUrl }}/profile" role="menuitem">
+                                <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                                My Profile
+                            </a>
+                            <a href="{{ $.baseUrl }}/orders" role="menuitem">
+                                <svg viewBox="0 0 24 24"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+                                My Orders
+                            </a>
+                            <div class="dd-divider"></div>
+                            <a href="{{ $.baseUrl }}/logout" class="dd-logout" role="menuitem">
+                                <svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                                Logout
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                {{ end }}
+
+                <a href="{{ $.baseUrl }}/cart" class="cart-link cart-link-always">
+                    <img src="{{ $.baseUrl }}/static/icons/Hipster_CartIcon.svg" alt="Cart" class="logo" title="Cart" />
+                    {{ if $.cart_size }}
+                    <span class="cart-size-circle">{{$.cart_size}}</span>
                     {{ end }}
                 </a>
 
-                <div class="controls" style="display:flex; align-items:center; flex-wrap:nowrap;">
-
-                    {{ if $.show_currency }}
-                    <div class="h-controls">
-                        <div class="h-control">
-                            <span class="icon currency-icon">{{ renderCurrencyLogo $.user_currency }}</span>
-                            <form method="POST" class="controls-form" action="{{ $.baseUrl }}/setCurrency" id="currency_form">
-                                <select name="currency_code" onchange="document.getElementById('currency_form').submit();">
-                                    {{range $.currencies}}
-                                    <option value="{{.}}" {{if eq . $.user_currency}}selected="selected"{{end}}>{{.}}</option>
-                                    {{end}}
-                                </select>
-                            </form>
-                            <img src="{{ $.baseUrl }}/static/icons/Hipster_DownArrow.svg" alt="" class="icon arrow" />
-                        </div>
-                    </div>
-                    {{ end }}
-
-                    {{ if $.assistant_enabled }}
-                    <a href="{{ $.baseUrl }}/assistant" class="cart-link">
-                        <img src="{{ $.baseUrl }}/static/icons/Hipster_WandIcon.svg" style="width:22px;height:22px;" alt="Assistant icon" class="logo" title="Assistant" />
-                    </a>
-                    {{ end }}
-
-                    {{/* username dropdown FIRST, then cart always visible */}}
-                    {{ if $.username }}
-                    <div class="user-nav">
-                        <div class="user-dropdown-wrap">
-                            <button class="user-dropdown-btn" id="userDropdownBtn" aria-haspopup="true" aria-expanded="false">
-                                Hi, <strong>{{ $.username }}</strong>
-                                <span class="chevron">&#9660;</span>
-                            </button>
-                            <div class="user-dropdown-menu" id="userDropdownMenu" role="menu">
-                                <a href="{{ $.baseUrl }}/profile" role="menuitem">
-                                    <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                                    My Profile
-                                </a>
-                                <a href="{{ $.baseUrl }}/orders" role="menuitem">
-                                    <svg viewBox="0 0 24 24"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
-                                    My Orders
-                                </a>
-                                <div class="dd-divider"></div>
-                                <a href="{{ $.baseUrl }}/logout" class="dd-logout" role="menuitem">
-                                    <svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-                                    Logout
-                                </a>
-                            </div>
-                        </div>
-                    </div>
-                    {{ end }}
-
-                    {{/* Cart is ALWAYS visible regardless of login state */}}
-                    <a href="{{ $.baseUrl }}/cart" class="cart-link cart-link-always">
-                        <img src="{{ $.baseUrl }}/static/icons/Hipster_CartIcon.svg" alt="Cart icon" class="logo" title="Cart" />
-                        {{ if $.cart_size }}
-                        <span class="cart-size-circle">{{$.cart_size}}</span>
-                        {{ end }}
-                    </a>
-
-                </div>
             </div>
         </div>
-    </header>
+    </div>
+</header>
 
-    <script>
-        (function () {
-            var btn  = document.getElementById('userDropdownBtn');
-            var menu = document.getElementById('userDropdownMenu');
-            if (!btn || !menu) return;
-            btn.addEventListener('click', function (e) {
-                e.stopPropagation();
-                var isOpen = menu.classList.toggle('open');
-                btn.classList.toggle('open', isOpen);
-                btn.setAttribute('aria-expanded', isOpen);
-            });
-            document.addEventListener('click', function () {
-                menu.classList.remove('open');
-                btn.classList.remove('open');
-                btn.setAttribute('aria-expanded', 'false');
-            });
-            menu.addEventListener('click', function (e) { e.stopPropagation(); });
-        })();
-    </script>
+<script>
+    (function () {
+        var btn  = document.getElementById('userDropdownBtn');
+        var menu = document.getElementById('userDropdownMenu');
+        if (!btn || !menu) return;
+        btn.addEventListener('click', function (e) {
+            e.stopPropagation();
+            var isOpen = menu.classList.toggle('open');
+            btn.classList.toggle('open', isOpen);
+            btn.setAttribute('aria-expanded', isOpen);
+        });
+        document.addEventListener('click', function () {
+            menu.classList.remove('open');
+            btn.classList.remove('open');
+            btn.setAttribute('aria-expanded', 'false');
+        });
+        menu.addEventListener('click', function (e) { e.stopPropagation(); });
+    })();
+</script>
 
 {{end}}

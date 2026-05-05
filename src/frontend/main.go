@@ -164,6 +164,7 @@ func main() {
 	r.HandleFunc(baseUrl+"/login", svc.loginHandler).Methods(http.MethodGet, http.MethodPost)
 	r.HandleFunc(baseUrl+"/register", svc.registerHandler).Methods(http.MethodGet, http.MethodPost)
 	r.HandleFunc(baseUrl+"/orders", svc.orderHistoryHandler).Methods(http.MethodGet)
+	r.HandleFunc(baseUrl+"/search", svc.searchHandler).Methods(http.MethodGet, http.MethodHead)
 	r.HandleFunc(baseUrl+"/profile", svc.profileHandler).Methods(http.MethodGet)
 	r.HandleFunc(baseUrl+"/product-meta/{ids}", svc.getProductByID).Methods(http.MethodGet)
 	r.HandleFunc(baseUrl+"/bot", svc.chatBotHandler).Methods(http.MethodPost)

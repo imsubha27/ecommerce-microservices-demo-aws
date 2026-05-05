@@ -1,0 +1,80 @@
+{{ define "search" }}
+
+{{ template "header" . }}
+
+<div {{ with $.platform_css }}class="{{.}}"{{ end }}>
+    <span class="platform-flag">{{ $.platform_name }}</span>
+</div>
+
+<main role="main" class="home">
+
+    <div class="home-mobile-hero-banner d-lg-none"></div>
+
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-12 col-lg-12 px-10-percent">
+
+                <!-- Results heading -->
+                <div class="row px-xl-6">
+                    <div class="col-12">
+                        {{ if $.query }}
+                            {{ if $.products }}
+                                <h3 style="margin-bottom:0.25rem;">
+                                    Results for &ldquo;{{ $.query }}&rdquo;
+                                </h3>
+                                <p style="font-size:0.85rem; color:#aaa; margin-bottom:1.5rem;">
+                                    {{ len $.products }} product{{ if gt (len $.products) 1 }}s{{ end }} found
+                                </p>
+                            {{ else }}
+                                <h3 style="margin-bottom:0.25rem;">
+                                    No results for &ldquo;{{ $.query }}&rdquo;
+                                </h3>
+                                <p style="font-size:0.85rem; color:#aaa; margin-bottom:1.5rem;">
+                                    Try a different search term.
+                                </p>
+                            {{ end }}
+                        {{ else }}
+                            <h3 style="margin-bottom:1.5rem;">Search products</h3>
+                        {{ end }}
+                    </div>
+                </div>
+
+                <!-- Product cards — same markup as home.html hot-products grid -->
+                {{ if $.products }}
+                <div class="row hot-products-row px-xl-6">
+                    {{ range $.products }}
+                    <div class="col-md-4 hot-product-card">
+                        <a href="{{ $.baseUrl }}/product/{{ .Item.Id }}">
+                            <img loading="lazy"
+                                 src="{{ $.baseUrl }}{{ .Item.Picture }}"
+                                 alt="{{ .Item.Name }}">
+                            <div class="hot-product-card-img-overlay"></div>
+                        </a>
+                        <div>
+                            <div class="hot-product-card-name">{{ .Item.Name }}</div>
+                            <div class="hot-product-card-price">{{ renderMoney .Price }}</div>
+                        </div>
+                    </div>
+                    {{ end }}
+                </div>
+                {{ end }}
+
+                <!-- Desktop footer -->
+                <div class="row d-none d-lg-block home-desktop-footer-row">
+                    <div class="col-12 p-0">
+                        {{ template "footer" . }}
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+</main>
+
+<!-- Mobile footer -->
+<div class="d-lg-none">
+    {{ template "footer" . }}
+</div>
+
+{{ end }}

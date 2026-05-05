@@ -592,8 +592,9 @@ func (fe *frontendServer) logoutHandler(w http.ResponseWriter, r *http.Request) 
 func (fe *frontendServer) loginHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodGet {
 		if err := templates.ExecuteTemplate(w, "login", map[string]interface{}{
-			"baseUrl": baseUrl,
-			"error":   r.URL.Query().Get("error"),
+			"baseUrl":     baseUrl,
+			"error":       r.URL.Query().Get("error"),
+			"hide_search": true,
 		}); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
@@ -639,8 +640,9 @@ func (fe *frontendServer) loginHandler(w http.ResponseWriter, r *http.Request) {
 func (fe *frontendServer) registerHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodGet {
 		if err := templates.ExecuteTemplate(w, "register", map[string]interface{}{
-			"baseUrl": baseUrl,
-			"error":   r.URL.Query().Get("error"),
+			"baseUrl":     baseUrl,
+			"error":       r.URL.Query().Get("error"),
+			"hide_search": true,
 		}); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
@@ -830,6 +832,7 @@ func injectCommonTemplateData(r *http.Request, payload map[string]interface{}) m
 		"baseUrl":           baseUrl,
 		"username":          username,
 		"email":             email, // FIX: now available in all templates including profile
+		"search_query":      r.URL.Query().Get("q"), // keeps search bar populated on results page
 	}
 	for k, v := range payload {
 		data[k] = v
@@ -894,4 +897,61 @@ func stringinSlice(slice []string, val string) bool {
 		}
 	}
 	return false
+}
+
+
+// searchHandler handles GET /search?q=<query>.
+// It calls the SearchProducts gRPC method on the catalog service,
+// converts each result's price to the user's currency, and renders
+// the search.html template using the same product card layout as home.html.
+func (fe *frontendServer) searchHandler(w http.ResponseWriter, r *http.Request) {
+	log := r.Context().Value(ctxKeyLog{}).(logrus.FieldLogger)
+
+	query := strings.TrimSpace(r.URL.Query().Get("q"))
+
+	currencies, err := fe.getCurrencies(r.Context())
+	if err != nil {
+		renderHTTPError(log, r, w, errors.Wrap(err, "could not retrieve currencies"), http.StatusInternalServerError)
+		return
+	}
+
+	cart, err := fe.getCart(r.Context(), sessionID(r))
+	if err != nil {
+		renderHTTPError(log, r, w, errors.Wrap(err, "could not retrieve cart"), http.StatusInternalServerError)
+		return
+	}
+
+	type productView struct {
+		Item  *pb.Product
+		Price *pb.Money
+	}
+
+	var products []productView
+
+	if query != "" {
+		results, err := fe.searchProducts(r.Context(), query)
+		if err != nil {
+			renderHTTPError(log, r, w, errors.Wrap(err, "search failed"), http.StatusInternalServerError)
+			return
+		}
+		for _, p := range results {
+			price, err := fe.convertCurrency(r.Context(), p.GetPriceUsd(), currentCurrency(r))
+			if err != nil {
+				renderHTTPError(log, r, w, errors.Wrapf(err, "failed currency conversion for product %s", p.GetId()), http.StatusInternalServerError)
+				return
+			}
+			products = append(products, productView{p, price})
+		}
+		log.WithField("query", query).WithField("results", len(products)).Info("search")
+	}
+
+	if err := templates.ExecuteTemplate(w, "search", injectCommonTemplateData(r, map[string]interface{}{
+		"show_currency": true,
+		"currencies":    currencies,
+		"cart_size":     cartSize(cart),
+		"query":         query,
+		"products":      products,
+	})); err != nil {
+		log.Println(err)
+	}
 }
