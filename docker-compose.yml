@@ -150,11 +150,7 @@ services:
       - RECOMMENDATION_SERVICE_ADDR=recommendation:${RECOMMENDATION_PORT}
       - CHECKOUT_SERVICE_ADDR=checkout:${CHECKOUT_PORT}
       - AD_SERVICE_ADDR=ad:${AD_PORT}
-      # Shopping assistant is disabled: it depends on GCP-specific services
-      # (AlloyDB, Google Secret Manager, Gemini) that are not available on AWS.
-      # To re-enable, replace shoppingassistantservice with AWS-compatible
-      # equivalents (e.g. Bedrock + Aurora pgvector) and set ENABLE_ASSISTANT=true.
-      - ENABLE_ASSISTANT=false
+      - ENABLE_ASSISTANT=true
       - SHOPPING_ASSISTANT_SERVICE_ADDR=shoppingassistant:${SHOPPING_ASSISTANT_PORT}
       - AUTH_SERVICE_ADDR=auth:${AUTH_PORT}
       - ORDER_SERVICE_ADDR=order:${ORDER_PORT}
@@ -179,7 +175,8 @@ services:
         condition: service_started
       order:
         condition: service_started
-
+      shoppingassistant:
+        condition: service_started  
 
   # Payment service
   payment:
@@ -270,6 +267,46 @@ services:
     depends_on:
       order-db:
         condition: service_started
+
+
+  # Shopping Assistant Service
+  shoppingassistant:
+    image: ${IMAGE_NAME}/shoppingassistantservice:${IMAGE_VERSION}
+    build:
+      context: ./src/shoppingassistantservice
+    restart: unless-stopped
+    ports:
+      - "${SHOPPING_ASSISTANT_PORT}"
+    environment:
+      - PORT=${SHOPPING_ASSISTANT_PORT}
+      - GROQ_API_KEY=${GROQ_API_KEY}
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      - DATABASE_URL=postgresql+psycopg://postgres:vectorpass@vector-db:5432/vectordb
+      - COLLECTION_NAME=products
+    depends_on:
+      vector-db:
+        condition: service_healthy
+
+
+  # Vector DB for shopping assistant (pgvector)
+  vector-db:
+    image: pgvector/pgvector:pg16
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=vectordb
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=vectorpass
+    ports:
+      - "5433:5432"          # exposed on 5433 to avoid clash with auth-db
+    volumes:
+      - vector-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d vectordb"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
  
   # Order DB (PostgreSQL)
   order-db:
@@ -349,4 +386,5 @@ services:
 volumes:
   auth-db-data:
   order-db-data:
+  vector-db-data:
   grafana-data:

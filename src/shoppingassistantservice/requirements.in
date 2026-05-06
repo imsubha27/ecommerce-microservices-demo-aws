@@ -1,6 +1,8 @@
 flask==3.1.2
-langchain-google-genai==2.1.10
 langchain==0.3.27
-pillow==11.3.0
-langchain-google-alloydb-pg==0.13.0
-google-cloud-secret-manager==2.24.0
+langchain-groq==0.2.4
+langchain-postgres==0.0.12
+langchain-community==0.3.27
+fastembed==0.4.2
+psycopg[binary]==3.2.4
+psycopg2-binary==2.9.9
