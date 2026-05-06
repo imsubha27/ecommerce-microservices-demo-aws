@@ -17,6 +17,7 @@
 {{ define "assistant" }}
 
 {{ template "header" . }}
+<script>document.body.classList.add('page-assistant');</script>
 <div {{ with $.platform_css }} class="{{.}}" {{ end }}>
   <span class="platform-flag">
     {{$.platform_name}}

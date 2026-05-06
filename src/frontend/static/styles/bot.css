@@ -7,6 +7,7 @@
   box-shadow: 0px 4px 4px rgba(0, 0, 0, 0.25);
   overflow: auto;
   display: block;
+  position: relative;
 }
 
 @keyframes scale-in {
@@ -163,4 +164,152 @@ button[disabled]{
 
 @keyframes shimmer {
   100% {-webkit-mask-position:left}
+}
+
+/* ═══════════════════════════════════════════
+   MOBILE CHAT LAYOUT (≤ 576px)
+   Accounts for: sticky topbar (~100px) +
+   bottom nav (56px) + FAB (52px+gap)
+═══════════════════════════════════════════ */
+@media (max-width: 576px) {
+
+  /* Remove the container padding that wastes space */
+  .home main .container,
+  main .container {
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  .chat-modal {
+    /* Fill from just below the sticky header to just above the bottom nav */
+    height: calc(100dvh - 108px - 56px);
+    /* 108px = topbar(46px) + searchbar(62px); 56px = bottom nav */
+    margin-top: 8px;
+    margin-bottom: 0;
+    border-radius: 12px 12px 0 0;
+    overflow: hidden; /* let children scroll, not the modal itself */
+    display: flex;
+    flex-direction: column;
+  }
+
+  .bot-messages {
+    flex: 1;
+    overflow-y: auto;
+    height: auto; /* override the calc() that assumed desktop */
+    padding-bottom: 8px;
+    /* Extra bottom padding so last message isn't hidden behind input */
+    scroll-padding-bottom: 80px;
+  }
+
+  .bot-input {
+    /* Switch from absolute to static flow so it sits at the bottom naturally */
+    position: relative;
+    bottom: auto;
+    width: auto;
+    margin: 8px 10px;
+    margin-right: 10px;
+    padding: 10px 12px;
+    border-radius: 12px;
+    flex-shrink: 0;
+    /* Sit above the bottom nav — no extra offset needed since modal ends there */
+  }
+
+  .bot-input-text {
+    font-size: 0.9rem;
+    padding: 0 0 6px 10px;
+  }
+
+  .bot-input-button {
+    font-size: 12px;
+    padding: 7px 12px;
+    white-space: nowrap;
+  }
+
+  /* File upload button is too wide on mobile — hide label text */
+  .bot-input-file-button {
+    width: 36px;
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+
+  /* Tighten message bubbles on narrow screens */
+  .bot-message,
+  .user-message {
+    margin-left: 10px;
+    margin-right: 10px;
+    padding: 12px;
+    font-size: 0.88rem;
+  }
+
+  .bot-message  { margin-right: 15%; }
+  .user-message { margin-left:  15%; }
+
+  .bot-products { margin-left: 10px; margin-right: 10px; }
+
+  .bot-product {
+    height: 110px;
+  }
+
+  .bot-product-img {
+    height: 110px;
+  }
+
+  .bot-product-description {
+    font-size: 0.8rem;
+    width: calc(100% - 130px);
+  }
+}
+
+/* Hide FAB when already on the assistant page */
+.page-assistant .mobile-assistant-fab {
+  display: none !important;
+}
+
+/* On the assistant page, the input bar must clear the bottom nav (56px) */
+@media (max-width: 576px) {
+  .page-assistant .chat-modal {
+    /* topbar(46) + searchbar(62) = 108px top; bottom nav = 56px */
+    height: calc(100dvh - 108px - 56px - 8px);
+    margin-top: 4px;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  /* Keep input bar inside the modal flex flow — no absolute positioning */
+  .page-assistant .bot-input {
+    position: relative;
+    bottom: auto;
+    width: auto;
+    margin: 6px 8px;
+    margin-right: 8px;
+    flex-shrink: 0;
+  }
+
+  /* Remove the container gutters on the assistant page so chat fills full width */
+  .page-assistant ~ main .container,
+  main .container {
+    padding-left: 4px;
+    padding-right: 4px;
+  }
+}
+
+@media (max-width: 576px) {
+  body.page-assistant main .container {
+    padding-left: 4px;
+    padding-right: 4px;
+    max-width: 100%;
+  }
+  body.page-assistant .chat-modal {
+    height: calc(100dvh - 108px - 56px - 8px);
+    margin-top: 4px;
+    border-radius: 0;
+    box-shadow: none;
+  }
+  body.page-assistant .bot-input {
+    position: relative !important;
+    bottom: auto !important;
+    width: auto !important;
+    margin: 6px 8px !important;
+    flex-shrink: 0;
+  }
 }

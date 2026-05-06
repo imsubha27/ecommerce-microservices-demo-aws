@@ -170,10 +170,60 @@
             }
         }
 
+        /* ── Floating Assistant button (mobile only) ── */
+        @media (max-width: 576px) {
+            .mobile-assistant-fab {
+                display: flex !important;
+                position: fixed;
+                bottom: 68px; /* sits just above the bottom nav */
+                right: 16px;
+                z-index: 500;
+                width: 52px;
+                height: 52px;
+                border-radius: 50%;
+                background: #570D2E;
+                color: #fff;
+                align-items: center;
+                justify-content: center;
+                box-shadow: 0 4px 14px rgba(87,13,46,0.45);
+                text-decoration: none;
+                transition: transform .18s, box-shadow .18s;
+            }
+            .mobile-assistant-fab:hover,
+            .mobile-assistant-fab:active {
+                transform: scale(1.08);
+                box-shadow: 0 6px 20px rgba(87,13,46,0.55);
+                text-decoration: none;
+                color: #fff;
+            }
+            .mobile-assistant-fab svg {
+                width: 24px;
+                height: 24px;
+                stroke: #fff;
+                fill: none;
+                stroke-width: 1.8;
+            }
+            /* Pulse ring to draw attention */
+            .mobile-assistant-fab::after {
+                content: '';
+                position: absolute;
+                inset: -4px;
+                border-radius: 50%;
+                border: 2px solid rgba(87,13,46,0.35);
+                animation: fab-pulse 2.2s ease-out infinite;
+            }
+            @keyframes fab-pulse {
+                0%   { transform: scale(1);   opacity: 1; }
+                70%  { transform: scale(1.25); opacity: 0; }
+                100% { transform: scale(1.25); opacity: 0; }
+            }
+        }
+
         /* Hide mobile elements on desktop */
         @media (min-width: 577px) {
             .mobile-topbar, .mobile-search-row,
-            .mobile-categories, .mobile-bottom-nav { display:none !important; }
+            .mobile-categories, .mobile-bottom-nav,
+            .mobile-assistant-fab { display:none !important; }
         }
     </style>
 </head>
@@ -214,6 +264,16 @@
 {{ end }}
 
 
+
+{{ if $.assistant_enabled }}
+<!-- Floating Assistant button (mobile) -->
+<a href="{{ $.baseUrl }}/assistant" class="mobile-assistant-fab" title="Shopping Assistant" aria-label="Open shopping assistant">
+    <svg viewBox="0 0 24 24">
+        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+        <path d="M8 10h.01M12 10h.01M16 10h.01"/>
+    </svg>
+</a>
+{{ end }}
 
 <!-- Bottom nav bar -->
 <nav class="mobile-bottom-nav">
