@@ -1,0 +1,44 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cart
+  namespace: ecommerce
+  labels:
+    app.kubernetes.io/name: cart
+    app.kubernetes.io/instance: ecommerce
+    app.kubernetes.io/version: "1.0"
+    app.kubernetes.io/part-of: ecommerce
+spec:
+  serviceAccountName: ecommerce-sa
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cart
+  template:
+    metadata:
+      labels:
+        app: cart
+    spec:
+      containers: 
+      - name: cart
+        image: 412628362705.dkr.ecr.us-east-1.amazonaws.com/ecommerce/cartservice:latest
+        ports:
+        - containerPort: 7070
+        env:
+        - name: PORT
+          valueFrom:
+            configMapKeyRef:
+              name: ecommerce-config
+              key: CART_PORT
+        - name: REDIS_ADDR
+          valueFrom:
+            configMapKeyRef:
+              name: ecommerce-config
+              key: REDIS_ADDR
+      resources:
+          requests:
+            cpu: 100m
+            memory: 64Mi
+          limits:
+            cpu: 200m
+            memory: 128Mi

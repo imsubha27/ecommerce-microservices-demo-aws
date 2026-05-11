@@ -1,0 +1,70 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: checkout
+  namespace: ecommerce
+  labels:
+    app.kubernetes.io/name: checkout
+    app.kubernetes.io/instance: ecommerce
+    app.kubernetes.io/version: "1.0"
+    app.kubernetes.io/part-of: ecommerce
+spec:
+  serviceAccountName: ecommerce-sa
+  replicas: 1
+  selector:
+    matchLabels:
+      app: checkout
+  template:
+    metadata:
+      labels:
+        app: checkout
+    spec:
+      containers:
+      - name: checkout
+        image: 412628362705.dkr.ecr.us-east-1.amazonaws.com/ecommerce/checkoutservice:latest
+        ports:
+        - containerPort: 5050
+        env:
+        - name: PORT
+          valueFrom:
+            configMapKeyRef:
+              name: ecommerce-config
+              key: CHECKOUT_PORT
+        - name: CART_SERVICE_ADDR
+          valueFrom:
+            configMapKeyRef:
+              name: ecommerce-config
+              key: CART_SERVICE_ADDR
+        - name: PAYMENT_SERVICE_ADDR
+          valueFrom:
+            configMapKeyRef:
+              name: ecommerce-config
+              key: PAYMENT_SERVICE_ADDR
+        - name: SHIPPING_SERVICE_ADDR
+          valueFrom:
+            configMapKeyRef:
+              name: ecommerce-config
+              key: SHIPPING_SERVICE_ADDR
+        - name: EMAIL_SERVICE_ADDR
+          valueFrom:
+            configMapKeyRef:
+              name: ecommerce-config
+              key: EMAIL_SERVICE_ADDR
+        - name: PRODUCT_CATALOG_SERVICE_ADDR
+          valueFrom:
+            configMapKeyRef:
+              name: ecommerce-config
+              key: PRODUCT_CATALOG_SERVICE_ADDR
+        - name: CURRENCY_SERVICE_ADDR
+          valueFrom:
+            configMapKeyRef:
+              name: ecommerce-config
+              key: CURRENCY_SERVICE_ADDR
+
+      resources:
+        requests:
+          cpu: 100m
+          memory: 64Mi
+        limits:
+          cpu: 200m
+          memory: 128Mi
