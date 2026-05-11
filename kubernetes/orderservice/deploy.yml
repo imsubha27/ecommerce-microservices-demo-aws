@@ -1,10 +1,10 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: auth
+  name: order
   namespace: ecommerce
   labels:
-    app.kubernetes.io/name: auth
+    app.kubernetes.io/name: order
     app.kubernetes.io/instance: ecommerce
     app.kubernetes.io/version: "1.0"
     app.kubernetes.io/part-of: ecommerce
@@ -13,44 +13,44 @@ spec:
   replicas: 1
   selector:
     matchLabels:
-      app: auth
+      app: order
   template:
     metadata:
       labels:
-        app: auth
+        app: order
     spec:
       containers:
-      - name: auth
-        image: 412628362705.dkr.ecr.us-east-1.amazonaws.com/ecommerce/authservice:latest
+      - name: order
+        image: 412628362705.dkr.ecr.us-east-1.amazonaws.com/ecommerce/orderservice:latest
         ports:
-        - containerPort: 9555
+        - containerPort: 8082
         env:
         - name: PORT
           valueFrom:
             configMapKeyRef:
               name: ecommerce-config
-              key: AUTH_PORT
-        - name: AUTH_DB_HOST
+              key: ORDER_PORT
+        - name: ORDER_DB_HOST
           valueFrom:
             secretKeyRef:
               name: rds-credentials
               key: host
-        - name: AUTH_DB_PORT
+        - name: ORDER_DB_PORT
           valueFrom:
             configMapKeyRef:
               name: ecommerce-config
-              key: AUTH_DB_PORT
-        - name: AUTH_DB_NAME
+              key: ORDER_DB_PORT
+        - name: ORDER_DB_NAME
           valueFrom:
             configMapKeyRef:
               name: ecommerce-config
-              key: AUTH_DB_NAME
-        - name: AUTH_DB_USER
+              key: ORDER_DB_NAME
+        - name: ORDER_DB_USER
           valueFrom:
             secretKeyRef:
               name: rds-credentials
               key: username
-        - name: AUTH_DB_PASSWORD
+        - name: ORDER_DB_PASSWORD
           valueFrom:
             secretKeyRef:
               name: rds-credentials
@@ -60,14 +60,14 @@ spec:
             secretKeyRef:
               name: app-secrets
               key: jwt-secret
-              
-        resources:
+
+      resources:
           requests:
             cpu: 100m
-            memory: 200Mi
+            memory: 128Mi
           limits:
             cpu: 300m
-            memory: 400Mi
-        readinessProbe:
-          tcpSocket:
-            port: 8081
+            memory: 256Mi
+      readinessProbe:
+        tcpSocket:
+          port: 8082

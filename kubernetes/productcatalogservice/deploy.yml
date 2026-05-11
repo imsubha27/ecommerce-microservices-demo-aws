@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: productcatalog
+  namespace: ecommerce
+  labels:
+    app.kubernetes.io/name: productcatalog
+    app.kubernetes.io/instance: ecommerce
+    app.kubernetes.io/version: "1.0"
+    app.kubernetes.io/part-of: ecommerce
+spec:
+  serviceAccountName: ecommerce-sa
+  replicas: 1
+  selector:
+    matchLabels:
+      app: productcatalog
+  template:
+    metadata:
+      labels:
+        app: productcatalog
+    spec:
+      containers:
+      - name: productcatalog
+        image: 412628362705.dkr.ecr.us-east-1.amazonaws.com/ecommerce/productcatalogservice:latest
+        ports:
+        - containerPort: 3550
+        env:
+        - name: PORT
+          valueFrom:
+            configMapKeyRef:
+              name: ecommerce-config
+              key: PRODUCT_CATALOG_PORT
+
+      resources:
+          requests:
+            cpu: 100m
+            memory: 64Mi
+          limits:
+            cpu: 200m
+            memory: 128Mi

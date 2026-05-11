@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: payment
+  namespace: ecommerce
+  labels:
+    app.kubernetes.io/name: payment
+    app.kubernetes.io/instance: ecommerce
+    app.kubernetes.io/version: "1.0"
+    app.kubernetes.io/part-of: ecommerce
+spec:
+  serviceAccountName: ecommerce-sa
+  replicas: 1
+  selector:
+    matchLabels:
+      app: payment
+  template:
+    metadata:
+      labels:
+        app: payment
+    spec:
+      containers:
+      - name: payment
+        image: 412628362705.dkr.ecr.us-east-1.amazonaws.com/ecommerce/paymentservice:latest
+        ports:
+        - containerPort: 50051
+        env:
+        - name: PORT
+          valueFrom:
+            configMapKeyRef:
+              name: ecommerce-config
+              key: PAYMENT_PORT
+
+      resources:
+          requests:
+            cpu: 100m
+            memory: 200Mi
+          limits:
+            cpu: 300m
+            memory: 500Mi
