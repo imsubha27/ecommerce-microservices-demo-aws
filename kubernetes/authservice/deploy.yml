@@ -69,5 +69,6 @@ spec:
             cpu: 300m
             memory: 400Mi
         readinessProbe:
-          tcpSocket:
+          httpGet:
+            path: /health
             port: 8081

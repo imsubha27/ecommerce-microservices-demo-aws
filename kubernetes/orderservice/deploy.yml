@@ -69,5 +69,8 @@ spec:
             cpu: 300m
             memory: 256Mi
       readinessProbe:
-        tcpSocket:
+        httpGet:
+          path: /health
           port: 8082
+          initialDelaySeconds: 10
+          periodSeconds: 10

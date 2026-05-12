@@ -42,3 +42,8 @@ spec:
           limits:
             cpu: 200m
             memory: 128Mi
+      readinessProbe:
+        tcpSocket:
+          port: 7070
+        initialDelaySeconds: 10
+        periodSeconds: 10
