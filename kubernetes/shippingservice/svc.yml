@@ -11,7 +11,8 @@ metadata:
 spec:
   type: ClusterIP
   selector: 
-    app: shipping
+    app.kubernetes.io/name: shipping
+    app.kubernetes.io/instance: ecommerce
   ports:
     - port: 50051
       targetPort: 50051

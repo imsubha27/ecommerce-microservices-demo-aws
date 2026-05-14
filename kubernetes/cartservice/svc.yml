@@ -11,7 +11,8 @@ metadata:
 spec:
   type: ClusterIP
   selector: 
-    app: cart
+    app.kubernetes.io/name: cart
+    app.kubernetes.io/instance: ecommerce
   ports:
     - port: 7070
       targetPort: 7070

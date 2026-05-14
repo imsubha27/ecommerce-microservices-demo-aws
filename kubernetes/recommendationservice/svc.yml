@@ -11,7 +11,8 @@ metadata:
 spec:
   type: ClusterIP
   selector: 
-    app: recommendation
+    app.kubernetes.io/name: recommendation
+    app.kubernetes.io/instance: ecommerce
   ports:
     - port: 8080
       targetPort: 8080

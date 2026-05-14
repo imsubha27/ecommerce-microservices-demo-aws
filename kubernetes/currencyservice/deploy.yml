@@ -9,16 +9,20 @@ metadata:
     app.kubernetes.io/version: "1.0"
     app.kubernetes.io/part-of: ecommerce
 spec:
-  serviceAccountName: ecommerce-sa
   replicas: 1
   selector:
     matchLabels:
-      app: currency
+      app.kubernetes.io/name: currency
+      app.kubernetes.io/instance: ecommerce
   template:
     metadata:
       labels:
-        app: currency
+        app.kubernetes.io/name: currency
+        app.kubernetes.io/instance: ecommerce
+        app.kubernetes.io/version: "1.0"
+        app.kubernetes.io/part-of: ecommerce
     spec:
+      serviceAccountName: ecommerce-sa
       containers:
       - name: currency
         image: 412628362705.dkr.ecr.us-east-1.amazonaws.com/ecommerce/currencyservice:latest

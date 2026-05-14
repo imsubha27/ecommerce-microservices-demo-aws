@@ -11,7 +11,8 @@ metadata:
 spec:
   type: ClusterIP
   selector: 
-    app: currency
+    app.kubernetes.io/name: currency
+    app.kubernetes.io/instance: ecommerce
   ports:
     - port: 7000
       targetPort: 7000

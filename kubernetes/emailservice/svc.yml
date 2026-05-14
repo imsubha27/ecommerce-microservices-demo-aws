@@ -11,7 +11,8 @@ metadata:
 spec:
   type: ClusterIP
   selector: 
-    app: email
+    app.kubernetes.io/name: email
+    app.kubernetes.io/instance: ecommerce
   ports:
     - port: 8080
       targetPort: 8080

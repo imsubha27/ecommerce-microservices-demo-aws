@@ -1,4 +1,4 @@
-apiVerson: apps/v1
+apiVersion: apps/v1                  # ← fix typo
 kind: Deployment
 metadata:
   name: redis
@@ -8,17 +8,21 @@ metadata:
     app.kubernetes.io/instance: ecommerce
     app.kubernetes.io/version: "1.0"
     app.kubernetes.io/part-of: ecommerce
-  
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: redis
+      app.kubernetes.io/name: redis       
+      app.kubernetes.io/instance: ecommerce
   template:
     metadata:
       labels:
-        app: redis
+        app.kubernetes.io/name: redis      
+        app.kubernetes.io/instance: ecommerce
+        app.kubernetes.io/version: "1.0"
+        app.kubernetes.io/part-of: ecommerce
     spec:
+      # NO serviceAccountName here, Redis doesn't need AWS access
       containers:
       - name: redis
         image: redis:alpine
@@ -31,15 +35,14 @@ spec:
           limits:
             cpu: 200m
             memory: 128Mi
-        livenessProbe:
+        readinessProbe:
           exec:
             command:
             - redis-cli
             - ping
           initialDelaySeconds: 5
           periodSeconds: 10
-
-        readinessProbe:
+        livenessProbe:
           exec:
             command:
             - redis-cli

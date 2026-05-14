@@ -13,12 +13,17 @@ spec:
   replicas: 1
   selector:
     matchLabels:
-      app: cart
+      app.kubernetes.io/name: cart
+      app.kubernetes.io/instance: ecommerce
   template:
     metadata:
       labels:
-        app: cart
+        app.kubernetes.io/name: cart
+        app.kubernetes.io/instance: ecommerce
+        app.kubernetes.io/version: "1.0"
+        app.kubernetes.io/part-of: ecommerce
     spec:
+      serviceAccountName: ecommerce-sa
       containers: 
       - name: cart
         image: 412628362705.dkr.ecr.us-east-1.amazonaws.com/ecommerce/cartservice:latest

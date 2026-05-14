@@ -9,16 +9,20 @@ metadata:
     app.kubernetes.io/version: "1.0"
     app.kubernetes.io/part-of: ecommerce
 spec:
-  serviceAccountName: ecommerce-sa
   replicas: 1
   selector:
     matchLabels:
-      app: order
+      app.kubernetes.io/name: order
+      app.kubernetes.io/instance: ecommerce
   template:
     metadata:
       labels:
-        app: order
+        app.kubernetes.io/name: order
+        app.kubernetes.io/instance: ecommerce
+        app.kubernetes.io/version: "1.0"
+        app.kubernetes.io/part-of: ecommerce
     spec:
+      serviceAccountName: ecommerce-sa
       containers:
       - name: order
         image: 412628362705.dkr.ecr.us-east-1.amazonaws.com/ecommerce/orderservice:latest

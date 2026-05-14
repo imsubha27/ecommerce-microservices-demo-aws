@@ -11,7 +11,8 @@ metadata:
 spec:
   type: ClusterIP
   selector: 
-    app: checkout
+    app.kubernetes.io/name: checkout
+    app.kubernetes.io/instance: ecommerce
   ports:
     - port: 5050
       targetPort: 5050

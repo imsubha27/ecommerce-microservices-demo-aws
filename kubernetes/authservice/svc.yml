@@ -11,7 +11,8 @@ metadata:
 spec:
   type: ClusterIP
   selector: 
-    app: auth
+    app.kubernetes.io/name: auth          
+    app.kubernetes.io/instance: ecommerce
   ports:
     - port: 8081
       targetPort: 8081

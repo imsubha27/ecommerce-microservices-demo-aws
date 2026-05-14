@@ -10,7 +10,8 @@ metadata:
     app.kubernetes.io/part-of: ecommerce
 spec:
   selector:
-    app: ad
+    app.kubernetes.io/name: ad          
+    app.kubernetes.io/instance: ecommerce
   ports:
     - port: 9555
       targetPort: 9555
