@@ -1,0 +1,96 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: shoppingassistant
+  namespace: ecommerce
+  labels:
+    app.kubernetes.io/name: shoppingassistant
+    app.kubernetes.io/instance: ecommerce
+    app.kubernetes.io/version: "1.0"
+    app.kubernetes.io/part-of: ecommerce
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: shoppingassistant
+      app.kubernetes.io/instance: ecommerce
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: shoppingassistant
+        app.kubernetes.io/instance: ecommerce
+        app.kubernetes.io/version: "1.0"
+        app.kubernetes.io/part-of: ecommerce
+    spec:
+      serviceAccountName: ecommerce-sa
+      containers:
+      - name: shoppingassistant
+        image: 412628362705.dkr.ecr.us-east-1.amazonaws.com/ecommerce/shoppingassistantservice:latest
+        ports:
+        - containerPort: 8080
+        env:
+        - name: PORT
+          valueFrom:
+            configMapKeyRef:
+              name: ecommerce-config
+              key: SHOPPING_ASSISTANT_PORT
+        # RDS connection for vector store
+        - name: AWS_REGION
+          valueFrom:
+            configMapKeyRef:
+              name: ecommerce-config
+              key: AWS_REGION
+        - name: COLLECTION_NAME
+          valueFrom:
+            configMapKeyRef:
+              name: ecommerce-config
+              key: COLLECTION_NAME
+        - name: ASSISTANT_DB_HOST
+          valueFrom:
+            secretKeyRef:
+              name: rds-credentials
+              key: host
+        - name: ASSISTANT_DB_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: ecommerce-config
+              key: ASSISTANT_DB_PORT
+        - name: ASSISTANT_DB_NAME
+          valueFrom:
+            secretKeyRef:
+              name: rds-credentials
+              key: ASSISTANT_DB_NAME
+        - name: ASSISTANT_DB_USER
+          valueFrom:
+            secretKeyRef:
+              name: rds-credentials
+              key: ASSISTANT_DB_USER
+        - name: ASSISTANT_DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: rds-credentials
+              key: ASSISTANT_DB_PASSWORD
+         # API keys (from Secrets Manager via ExternalSecret)
+        - name: GROQ_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: GROQ_API_KEY
+        - name: GOOGLE_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: GOOGLE_API_KEY
+        resources:
+          requests:
+            cpu: 250m
+            memory: 512Mi
+          limits:
+            cpu: 500m
+            memory: 1Gi
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 20
+          periodSeconds: 10
