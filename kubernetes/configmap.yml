@@ -1,0 +1,54 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ecommerce-config
+  namespace: ecommerce
+data:
+  # Ports
+  FRONTEND_PORT: "8080" #
+  AD_PORT: "9555" #
+  AUTH_PORT: "8081" # 
+  CART_PORT: "7070" #
+  CHECKOUT_PORT: "5050" #
+  CURRENCY_PORT: "7000" #
+  EMAIL_PORT: "8080" #
+  PAYMENT_PORT: "50051" #
+  PRODUCT_CATALOG_PORT: "3550" #
+  RECOMMENDATION_PORT: "8080" #
+  SHIPPING_PORT: "50051" #
+  SHOPPING_ASSISTANT_PORT: "8080" #
+  ORDER_PORT: "8080" #
+  REDIS_PORT: "6379"
+  ORDER_DB_PORT: "5432" #
+
+  # Service addresses (k8s DNS)
+  PRODUCT_CATALOG_SERVICE_ADDR: "product-catalog:3550" #
+  CART_SERVICE_ADDR: "cart:7070" #
+  CURRENCY_SERVICE_ADDR: "currency:7000" #
+  SHIPPING_SERVICE_ADDR: "shipping:50051" #
+  EMAIL_SERVICE_ADDR: "email:8080" #
+  PAYMENT_SERVICE_ADDR: "payment:50051" #
+  RECOMMENDATION_SERVICE_ADDR: "recommendation:8080" #
+  CHECKOUT_SERVICE_ADDR: "checkout:5050" #
+  AD_SERVICE_ADDR: "ad:9555" #
+  SHOPPING_ASSISTANT_SERVICE_ADDR: "shoppingassistant:8080" #
+  AUTH_SERVICE_ADDR: "auth:8081" #
+  ORDER_SERVICE_ADDR: "order:8080" #
+  REDIS_ADDR: "redis:6379" #
+  ENABLE_ASSISTANT: "true" #
+  ENABLE_PROFILER: "0" #
+
+  # RDS for auth service
+  AUTH_DB_PORT: "5432" #
+  AUTH_DB_NAME: "authdb" #
+
+  # RDS for order service
+  ORDER_DB_NAME: "orderdb" #
+
+  # RDS for shopping assistant
+  ASSISTANT_DB_PORT: "5432" #
+  ASSISTANT_DB_NAME: "vectordb" #
+
+  # Shopping assistant
+  COLLECTION_NAME: "products" #
+  AWS_REGION: "ap-south-1" #

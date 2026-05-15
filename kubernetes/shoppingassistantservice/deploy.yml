@@ -57,19 +57,19 @@ spec:
               key: ASSISTANT_DB_PORT
         - name: ASSISTANT_DB_NAME
           valueFrom:
-            secretKeyRef:
-              name: rds-credentials
+            configMapKeyRef:
+              name: ecommerce-config
               key: ASSISTANT_DB_NAME
         - name: ASSISTANT_DB_USER
           valueFrom:
             secretKeyRef:
               name: rds-credentials
-              key: ASSISTANT_DB_USER
+              key: username
         - name: ASSISTANT_DB_PASSWORD
           valueFrom:
             secretKeyRef:
               name: rds-credentials
-              key: ASSISTANT_DB_PASSWORD
+              key: password
          # API keys (from Secrets Manager via ExternalSecret)
         - name: GROQ_API_KEY
           valueFrom:
