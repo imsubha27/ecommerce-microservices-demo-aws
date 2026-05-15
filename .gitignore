@@ -38,3 +38,4 @@ release/wi-kubernetes-manifests.yaml
 vendor/
 *.env
 .env
+secrets.yml
