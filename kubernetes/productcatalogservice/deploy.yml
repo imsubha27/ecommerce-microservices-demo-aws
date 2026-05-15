@@ -25,7 +25,7 @@ spec:
       serviceAccountName: ecommerce-sa
       containers:
       - name: productcatalog
-        image: 412628362705.dkr.ecr.us-east-1.amazonaws.com/ecommerce/productcatalogservice:latest
+        image: 412628362705.dkr.ecr.ap-south-1.amazonaws.com/ecommerce/productcatalogservice:latest
         ports:
         - containerPort: 3550
         env:
@@ -35,15 +35,15 @@ spec:
               name: ecommerce-config
               key: PRODUCT_CATALOG_PORT
 
-      resources:
+        resources:
           requests:
             cpu: 100m
             memory: 64Mi
           limits:
             cpu: 200m
             memory: 128Mi
-      readinessProbe:
-        tcpSocket:
-          port: 3550
-        initialDelaySeconds: 10
-        periodSeconds: 10
+        readinessProbe:
+          tcpSocket:
+            port: 3550
+          initialDelaySeconds: 10
+          periodSeconds: 10

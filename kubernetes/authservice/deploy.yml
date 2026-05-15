@@ -25,9 +25,9 @@ spec:
       serviceAccountName: ecommerce-sa
       containers:
       - name: auth
-        image: 412628362705.dkr.ecr.us-east-1.amazonaws.com/ecommerce/authservice:latest
+        image: 412628362705.dkr.ecr.ap-south-1.amazonaws.com/ecommerce/authservice:latest
         ports:
-        - containerPort: 9555
+        - containerPort: 8081
         env:
         - name: PORT
           valueFrom:
@@ -63,7 +63,7 @@ spec:
           valueFrom:
             secretKeyRef:
               name: app-secrets
-              key: jwt-secret
+              key: JWT_SECRET
               
         resources:
           requests:

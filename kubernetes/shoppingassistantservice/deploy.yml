@@ -25,9 +25,9 @@ spec:
       serviceAccountName: ecommerce-sa
       containers:
       - name: shoppingassistant
-        image: 412628362705.dkr.ecr.us-east-1.amazonaws.com/ecommerce/shoppingassistantservice:latest
+        image: 412628362705.dkr.ecr.ap-south-1.amazonaws.com/ecommerce/shoppingassistantservice:latest
         ports:
-        - containerPort: 8080
+        - containerPort: 8090
         env:
         - name: PORT
           valueFrom:
@@ -70,7 +70,7 @@ spec:
             secretKeyRef:
               name: rds-credentials
               key: password
-         # API keys (from Secrets Manager via ExternalSecret)
+         # API keys 
         - name: GROQ_API_KEY
           valueFrom:
             secretKeyRef:
@@ -91,6 +91,6 @@ spec:
         readinessProbe:
           httpGet:
             path: /health
-            port: 8080
+            port: 8090
           initialDelaySeconds: 20
           periodSeconds: 10

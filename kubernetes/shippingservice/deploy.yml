@@ -25,7 +25,7 @@ spec:
       serviceAccountName: ecommerce-sa
       containers:
       - name: shipping
-        image: 412628362705.dkr.ecr.us-east-1.amazonaws.com/ecommerce/shippingservice:latest
+        image: 412628362705.dkr.ecr.ap-south-1.amazonaws.com/ecommerce/shippingservice:latest
         ports:
         - containerPort: 50051
         env:
@@ -35,15 +35,15 @@ spec:
               name: ecommerce-config
               key: SHIPPING_PORT
 
-      resources:
+        resources:
           requests:
             cpu: 100m
             memory: 64Mi
           limits:
             cpu: 200m
             memory: 128Mi
-      readinessProbe:
-        tcpSocket:
-          port: 50051
-        initialDelaySeconds: 10
-        periodSeconds: 10
+        readinessProbe:
+          tcpSocket:
+            port: 50051
+          initialDelaySeconds: 10
+          periodSeconds: 10

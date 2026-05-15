@@ -25,7 +25,7 @@ spec:
       serviceAccountName: ecommerce-sa
       containers:
       - name: ad
-        image: 412628362705.dkr.ecr.us-east-1.amazonaws.com/ecommerce/adservice:latest
+        image: 412628362705.dkr.ecr.ap-south-1.amazonaws.com/ecommerce/adservice:latest
         ports:
         - containerPort: 9555
         env:

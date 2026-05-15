@@ -25,7 +25,7 @@ spec:
       serviceAccountName: ecommerce-sa
       containers:
       - name: currency
-        image: 412628362705.dkr.ecr.us-east-1.amazonaws.com/ecommerce/currencyservice:latest
+        image: 412628362705.dkr.ecr.ap-south-1.amazonaws.com/ecommerce/currencyservice:latest
         ports:
         - containerPort: 7000
         env:
@@ -35,13 +35,13 @@ spec:
               name: ecommerce-config
               key: CURRENCY_PORT
 
-      resources:
-        requests:
-          cpu: 100m
-          memory: 64Mi
-        limits:
-          cpu: 200m
-          memory: 128Mi
-      readinessProbe:
-        tcpSocket:  
-          port: 7000
+        resources:
+          requests:
+            cpu: 100m
+            memory: 64Mi
+          limits:
+            cpu: 200m
+            memory: 128Mi
+        readinessProbe:
+          tcpSocket:  
+            port: 7000

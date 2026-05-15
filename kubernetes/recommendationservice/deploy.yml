@@ -25,7 +25,7 @@ spec:
       serviceAccountName: ecommerce-sa
       containers:
       - name: recommendation
-        image: 412628362705.dkr.ecr.us-east-1.amazonaws.com/ecommerce/recommendationservice:latest
+        image: 412628362705.dkr.ecr.ap-south-1.amazonaws.com/ecommerce/recommendationservice:latest
         ports:
         - containerPort: 8080
         env:
@@ -40,15 +40,15 @@ spec:
               name: ecommerce-config
               key: PRODUCT_CATALOG_SERVICE_ADDR
 
-      resources:
+        resources:
           requests:
             cpu: 300m
             memory: 128Mi
           limits:
             cpu: 300m
             memory: 128Mi
-      readinessProbe:
-        tcpSocket:
-          port: 8080
-        initialDelaySeconds: 10
-        periodSeconds: 10
+        readinessProbe:
+          tcpSocket:
+            port: 8080
+          initialDelaySeconds: 10
+          periodSeconds: 10

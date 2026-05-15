@@ -9,7 +9,6 @@ metadata:
     app.kubernetes.io/version: "1.0"
     app.kubernetes.io/part-of: ecommerce
 spec:
-  serviceAccountName: ecommerce-sa
   replicas: 1
   selector:
     matchLabels:
@@ -26,7 +25,7 @@ spec:
       serviceAccountName: ecommerce-sa
       containers: 
       - name: cart
-        image: 412628362705.dkr.ecr.us-east-1.amazonaws.com/ecommerce/cartservice:latest
+        image: 412628362705.dkr.ecr.ap-south-1.amazonaws.com/ecommerce/cartservice:latest
         ports:
         - containerPort: 7070
         env:
@@ -40,15 +39,15 @@ spec:
             configMapKeyRef:
               name: ecommerce-config
               key: REDIS_ADDR
-      resources:
+        resources:
           requests:
             cpu: 100m
             memory: 64Mi
           limits:
             cpu: 200m
             memory: 128Mi
-      readinessProbe:
-        tcpSocket:
-          port: 7070
-        initialDelaySeconds: 10
-        periodSeconds: 10
+        readinessProbe:
+          tcpSocket:
+            port: 7070
+          initialDelaySeconds: 10
+          periodSeconds: 10

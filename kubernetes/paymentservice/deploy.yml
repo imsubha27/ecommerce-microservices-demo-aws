@@ -25,7 +25,7 @@ spec:
       serviceAccountName: ecommerce-sa
       containers:
       - name: payment
-        image: 412628362705.dkr.ecr.us-east-1.amazonaws.com/ecommerce/paymentservice:latest
+        image: 412628362705.dkr.ecr.ap-south-1.amazonaws.com/ecommerce/paymentservice:latest
         ports:
         - containerPort: 50051
         env:
@@ -35,15 +35,15 @@ spec:
               name: ecommerce-config
               key: PAYMENT_PORT
 
-      resources:
+        resources:
           requests:
             cpu: 100m
             memory: 200Mi
           limits:
             cpu: 300m
             memory: 500Mi
-      readinessProbe:
-        tcpSocket:
-          port: 50051
-        initialDelaySeconds: 10
-        periodSeconds: 10
+        readinessProbe:
+          tcpSocket:
+            port: 50051
+          initialDelaySeconds: 10
+          periodSeconds: 10
