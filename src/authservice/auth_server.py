@@ -77,11 +77,11 @@ def get_db_config():
             "password": secret["password"],
         }
     return {
-        "host":     os.getenv("DB_HOST"),
-        "port":     int(os.getenv("DB_PORT", 5432)),
-        "dbname":   os.getenv("DB_NAME"),
-        "user":     os.getenv("DB_USER"),
-        "password": os.getenv("DB_PASSWORD"),
+        "host":     os.getenv("AUTH_DB_HOST"),
+        "port":     int(os.getenv("AUTH_DB_PORT", 5432)),
+        "dbname":   os.getenv("AUTH_DB_NAME"),
+        "user":     os.getenv("AUTH_DB_USER"),
+        "password": os.getenv("AUTH_DB_PASSWORD"),
     }
 
 
