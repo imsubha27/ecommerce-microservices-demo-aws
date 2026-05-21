@@ -1,0 +1,53 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: seed-vectors
+  namespace: ecommerce
+spec:
+  ttlSecondsAfterFinished: 300   # auto-clean up 5 min after completion
+  backoffLimit: 2
+  template:
+    spec:
+      restartPolicy: Never
+      serviceAccountName: ecommerce-sa
+      containers:
+      - name: seed-vectors
+        # Reuse the same image — products.json is already inside it
+        image: 412628362705.dkr.ecr.ap-south-1.amazonaws.com/ecommerce/shoppingassistantservice:latest
+        command: ["python", "seed_vectors.py"]
+        env:
+        - name: ASSISTANT_DB_HOST
+          valueFrom:
+            secretKeyRef:
+              name: rds-credentials
+              key: host
+        - name: ASSISTANT_DB_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: ecommerce-config
+              key: ASSISTANT_DB_PORT
+        - name: ASSISTANT_DB_NAME
+          valueFrom:
+            configMapKeyRef:
+              name: ecommerce-config
+              key: ASSISTANT_DB_NAME
+        - name: ASSISTANT_DB_USER
+          valueFrom:
+            secretKeyRef:
+              name: rds-credentials
+              key: username
+        - name: ASSISTANT_DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: rds-credentials
+              key: password
+        - name: COLLECTION_NAME
+          valueFrom:
+            configMapKeyRef:
+              name: ecommerce-config
+              key: COLLECTION_NAME
+        - name: GOOGLE_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: GOOGLE_API_KEY

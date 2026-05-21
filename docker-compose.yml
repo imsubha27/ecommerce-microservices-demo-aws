@@ -273,7 +273,8 @@ services:
   shoppingassistant:
     image: ${IMAGE_NAME}/shoppingassistantservice:${IMAGE_VERSION}
     build:
-      context: ./src/shoppingassistantservice
+      context: ./src     # Use the whole src as context since we need both the Dockerfile and products.json
+      dockerfile: shoppingassistantservice/Dockerfile # point explicitly to Dockerfile
     restart: unless-stopped
     ports:
       - "${SHOPPING_ASSISTANT_PORT}"

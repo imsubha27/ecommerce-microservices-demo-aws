@@ -573,6 +573,7 @@ func (fe *frontendServer) assistantHandler(w http.ResponseWriter, r *http.Reques
 	if err := templates.ExecuteTemplate(w, "assistant", injectCommonTemplateData(r, map[string]interface{}{
 		"show_currency": false,
 		"currencies":    currencies,
+		"baseUrl":       baseUrl,
 	})); err != nil {
 		log.Println(err)
 	}

@@ -8,7 +8,7 @@ RUN apk add --no-cache --virtual .build-deps \
 WORKDIR /app
 
 # Copy requirements and install dependencies to /install
-COPY requirements.txt .
+COPY shoppingassistantservice/requirements.txt .
 RUN pip install --upgrade pip
 RUN pip install --prefix=/install -r requirements.txt
 
@@ -31,7 +31,10 @@ RUN wget -qO /bin/grpc_health_probe https://github.com/grpc-ecosystem/grpc-healt
 COPY --from=builder /install /usr/local
 
 # Copy application code
-COPY . .
+COPY shoppingassistantservice/ . 
+
+# Copy products.json from productcatalogservice, so that seeder can find the file
+COPY productcatalogservice/products.json .
 
 # Enable unbuffered logging
 ENV PYTHONUNBUFFERED=1
@@ -42,3 +45,6 @@ EXPOSE 8090
 
 # Start server
 ENTRYPOINT ["python", "shoppingassistantservice.py"]
+
+# Docker Build Command:
+# docker build -t ecommerce/shoppingassistantservice:latest -f src/shoppingassistantservice/Dockerfile src/
