@@ -37,8 +37,8 @@ COPY . .
 ENV PYTHONUNBUFFERED=1
 
 # Expose port
-ENV PORT=8080
-EXPOSE 8080
+ENV PORT=8090
+EXPOSE 8090
 
 # Start server
 ENTRYPOINT ["python", "shoppingassistantservice.py"]
