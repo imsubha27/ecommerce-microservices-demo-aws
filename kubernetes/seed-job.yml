@@ -46,8 +46,8 @@ spec:
             configMapKeyRef:
               name: ecommerce-config
               key: COLLECTION_NAME
-        - name: GOOGLE_API_KEY
+        - name: AWS_REGION
           valueFrom:
-            secretKeyRef:
-              name: app-secrets
-              key: GOOGLE_API_KEY
+            configMapKeyRef:
+              name: ecommerce-config
+              key: AWS_REGION

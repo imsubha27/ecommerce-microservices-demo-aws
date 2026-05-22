@@ -7,6 +7,12 @@ from langchain_aws import BedrockEmbeddings
 from langchain_postgres import PGVector
 from langchain_core.documents import Document
 
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass 
+
 AWS_REGION     = os.environ.get("AWS_REGION", "ap-south-1")
 EMBED_MODEL_ID = "amazon.titan-embed-text-v2:0"
 

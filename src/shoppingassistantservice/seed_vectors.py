@@ -1,11 +1,18 @@
 from dotenv import load_dotenv
-load_dotenv()
 
 import json, os
 import boto3
 from langchain_aws import BedrockEmbeddings
 from langchain_postgres import PGVector
 from langchain_core.documents import Document
+
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass 
+
+
 
 AWS_REGION     = os.environ.get("AWS_REGION", "ap-south-1")
 EMBED_MODEL_ID = "amazon.titan-embed-text-v2:0"
@@ -38,7 +45,7 @@ vectorstore = PGVector(
 )
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
-products_path = os.path.join(script_dir, "..", "src", "productcatalogservice", "products.json")
+products_path = "/shoppingassistantservice/products.json"
 
 with open(products_path) as f:
     products = json.load(f)["products"]

@@ -4,3 +4,4 @@ langchain-aws
 langchain-postgres
 boto3
 psycopg[binary]
+python-dotenv
