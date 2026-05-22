@@ -51,14 +51,14 @@ def create_app():
         connection=DATABASE_URL,
     )
 
-    # Claude 3 Haiku for recommendations (fast + cheap)
+    # Amazon Nova Lite for general conversation and recommendations (more cost-effective)
     llm = ChatBedrock(
         client=bedrock_client,
         model_id="apac.amazon.nova-lite-v1:0",
         model_kwargs={"max_tokens": 1024},
     )
 
-    # Claude 3.5 Sonnet for vision
+    # Amazon Nova Pro for vision and detailed responses (more expensive, so used selectively)
     llm_vision = ChatBedrock(
         client=bedrock_client,
         model_id="apac.amazon.nova-pro-v1:0",
