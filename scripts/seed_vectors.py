@@ -2,19 +2,33 @@ from dotenv import load_dotenv
 load_dotenv()
 
 import json, os
-from langchain_google_genai import GoogleGenerativeAIEmbeddings
+import boto3
+from langchain_aws import BedrockEmbeddings
 from langchain_postgres import PGVector
 from langchain_core.documents import Document
 
-# Always use localhost:5433 for local seeding
-# DATABASE_URL from .env uses 'vector-db' (Docker hostname) — unusable outside Docker
-# Kubernetes seeding is done via the seed-job.yml, not this script
-conn_str = "postgresql+psycopg://postgres:vectorpass@localhost:5433/vectordb"
+AWS_REGION     = os.environ.get("AWS_REGION", "ap-south-1")
+EMBED_MODEL_ID = "amazon.titan-embed-text-v2:0"
+
+# Local: always use localhost:5433
+# Kubernetes: assembles from ASSISTANT_DB_* env vars
+if "ASSISTANT_DB_HOST" in os.environ:
+    db_user     = os.environ["ASSISTANT_DB_USER"]
+    db_password = os.environ["ASSISTANT_DB_PASSWORD"]
+    db_host     = os.environ["ASSISTANT_DB_HOST"]
+    db_port     = os.environ.get("ASSISTANT_DB_PORT", "5432")
+    db_name     = os.environ.get("ASSISTANT_DB_NAME", "vectordb")
+    conn_str = f"postgresql+psycopg://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
+else:
+    conn_str = "postgresql+psycopg://postgres:vectorpass@localhost:5433/vectordb"
+
 print(f"Connecting to: {conn_str}")
 
-embeddings = GoogleGenerativeAIEmbeddings(
-    model="models/gemini-embedding-001",
-    google_api_key=os.environ["GOOGLE_API_KEY"]
+bedrock = boto3.client("bedrock-runtime", region_name=AWS_REGION)
+
+embeddings = BedrockEmbeddings(
+    client=bedrock,
+    model_id=EMBED_MODEL_ID,
 )
 
 vectorstore = PGVector(
@@ -33,11 +47,11 @@ docs = [
     Document(
         page_content=p["description"],
         metadata={
-            "id": p["id"],
-            "name": p["name"],
+            "id":         p["id"],
+            "name":       p["name"],
             "categories": str(p["categories"]),
-            "picture": p["picture"],
-            "price": p["priceUsd"]["units"]
+            "picture":    p["picture"],
+            "price":      p["priceUsd"]["units"],
         }
     )
     for p in products

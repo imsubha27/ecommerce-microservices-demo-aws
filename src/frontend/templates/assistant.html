@@ -19,10 +19,55 @@
 {{ template "header" . }}
 <script>document.body.classList.add('page-assistant');</script>
 <div {{ with $.platform_css }} class="{{.}}" {{ end }}>
-  <span class="platform-flag">
-    {{$.platform_name}}
-  </span>
+  <span class="platform-flag">{{$.platform_name}}</span>
 </div>
+
+<style>
+  /* ── Typing indicator ───────────────────────────────────────── */
+  .typing-indicator {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 10px 14px;
+  }
+  .typing-indicator span {
+    width: 8px;
+    height: 8px;
+    background: #aaa;
+    border-radius: 50%;
+    display: inline-block;
+    animation: typing-bounce 1.2s infinite ease-in-out;
+  }
+  .typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
+  .typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes typing-bounce {
+    0%, 80%, 100% { transform: scale(0.7); opacity: 0.5; }
+    40%            { transform: scale(1.1); opacity: 1; }
+  }
+
+  /* ── Quick reply chips ──────────────────────────────────────── */
+  .quick-replies {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 6px 0 10px 0;
+  }
+  .quick-reply-chip {
+    background: #fff;
+    border: 1.5px solid #e0437a;
+    color: #e0437a;
+    border-radius: 20px;
+    padding: 6px 14px;
+    font-size: 13px;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+    white-space: nowrap;
+  }
+  .quick-reply-chip:hover {
+    background: #e0437a;
+    color: #fff;
+  }
+</style>
 
 <main role="main">
   <div class="container">
@@ -31,14 +76,21 @@
         <div id="chat-modal" class="chat-modal">
           <div id="bot-messages" class="bot-messages">
             <p class="bot-message">
-              <span class="bot-message-text">Hi, I'm the Cymbal Shops assistant. I can help you with your shopping experience.</span>
+              <span class="bot-message-text">Hi, I'm your Online Boutique shopping assistant! I can help you find products that match your style.</span>
             </p>
             <p class="bot-message">
-              <span class="bot-message-text">What can I help you with?</span>
+              <span class="bot-message-text">What can I help you with today?</span>
             </p>
+            <!-- Initial quick replies -->
+            <div class="quick-replies" id="initial-quick-replies">
+              <button class="quick-reply-chip" onclick="sendQuickReply('Show me something for my kitchen')">🍳 Kitchen items</button>
+              <button class="quick-reply-chip" onclick="sendQuickReply('I need a gift under $50')">🎁 Gifts under $50</button>
+              <button class="quick-reply-chip" onclick="sendQuickReply('Show me accessories')">👜 Accessories</button>
+              <button class="quick-reply-chip" onclick="sendQuickReply('Something stylish for my home')">🏠 Home decor</button>
+            </div>
           </div>
           <div class="bot-input">
-            <input id="bot-input-text" type="text" style="margin-right: 30px;" class="bot-input-text" placeholder="Recommend me items...">
+            <input id="bot-input-text" type="text" style="margin-right: 30px;" class="bot-input-text" placeholder="Ask me anything...">
             <input type="file" class="bot-input-file-button" onchange="getBase64()">
             <button id="bot-input-button" class="bot-input-button">Send</button>
           </div>
@@ -49,7 +101,12 @@
 </main>
 
 <script>
+  // ── State ──────────────────────────────────────────────────────────────────
   var image;
+  // Conversation history sent to backend for multi-turn memory
+  // Each entry: { role: "user"|"assistant", content: "..." }
+  var conversationHistory = [];
+
   function getBase64() {
     var file = document.querySelector('input[type=file]')['files'][0];
     var reader = new FileReader();
@@ -61,6 +118,7 @@
   }
 
   function extractIdsFromString(message) {
+    // Handle both [ABCD1234] and [id=ABCD1234] formats, deduplicate
     const idPattern = /\[(?:id=)?([a-zA-Z0-9]+)\]/g;
     const matches = message.matchAll(idPattern);
     const ids = [];
@@ -72,150 +130,191 @@
     return ids;
   }
 
-  const chatModal = document.getElementById("chat-modal");
-  const botMessages = document.getElementById("bot-messages");
-  const botbutton = document.getElementById("bot-input-button");
-  const botinput = document.getElementById("bot-input-text");
+  // ── DOM refs ───────────────────────────────────────────────────────────────
+  const botMessages  = document.getElementById("bot-messages");
+  const botbutton    = document.getElementById("bot-input-button");
+  const botinput     = document.getElementById("bot-input-text");
 
-  async function main() {
-    botbutton.addEventListener("click", handleButtonClick);
-
-    botinput.addEventListener("keypress", (event) => {
-      if (event.key === "Enter") {
-        botbutton.click();
-      }
-    });
+  // ── Quick reply helper ─────────────────────────────────────────────────────
+  function sendQuickReply(text) {
+    botinput.value = text;
+    handleButtonClick();
   }
 
+  // ── Render quick reply chips after a bot response ──────────────────────────
+  function renderQuickReplies(suggestions) {
+    if (!suggestions || suggestions.length === 0) return;
+    const div = document.createElement("div");
+    div.classList.add("quick-replies");
+    suggestions.forEach(text => {
+      const btn = document.createElement("button");
+      btn.classList.add("quick-reply-chip");
+      btn.innerText = text;
+      btn.onclick = () => sendQuickReply(text);
+      div.appendChild(btn);
+    });
+    botMessages.appendChild(div);
+    botMessages.scrollTo(0, botMessages.scrollHeight);
+  }
+
+  // ── Typing indicator ───────────────────────────────────────────────────────
+  function showTypingIndicator() {
+    const p = document.createElement("p");
+    p.classList.add("bot-message");
+    p.id = "typing-indicator";
+    p.innerHTML = `<span class="bot-message-text">
+      <div class="typing-indicator">
+        <span></span><span></span><span></span>
+      </div>
+    </span>`;
+    botMessages.appendChild(p);
+    botMessages.scrollTo(0, botMessages.scrollHeight);
+  }
+
+  function removeTypingIndicator() {
+    const el = document.getElementById("typing-indicator");
+    if (el) el.remove();
+  }
+
+  // ── Main send handler ──────────────────────────────────────────────────────
   async function handleButtonClick() {
-    // FIX: trim() needs to be called as a function with ()
-    if (!botinput.value || !botinput.value.trim()) {
-      return;
-    }
+    if (!botinput.value || !botinput.value.trim()) return;
 
-    console.log("bot button clicked");
-    const message = botinput.value;
-    console.log("message: " + message);
+    // Hide initial quick replies once conversation starts
+    const initialQR = document.getElementById("initial-quick-replies");
+    if (initialQR) initialQR.remove();
 
-    // Construct and render user message
+    const message = botinput.value.trim();
+    botinput.value = "";
+
+    // Render user message
     const usermessage = document.createElement("p");
     const userMessageSpan = document.createElement("span");
-    const imageDivElement = document.createElement("div");
-    imageDivElement.classList.add("user-image-div");
-    const imageElement = document.createElement("img");
-    imageElement.src = image;
-    imageElement.classList.add("user-image");
-    imageElement.onerror = function() { this.style.display = 'none'; };
     userMessageSpan.innerText = message;
     userMessageSpan.classList.add("user-message-text");
     usermessage.classList.add("user-message");
     usermessage.appendChild(userMessageSpan);
     botMessages.appendChild(usermessage);
-    imageDivElement.appendChild(imageElement);
-    botMessages.appendChild(imageDivElement);
-    botMessages.scrollTo(0, botMessages.scrollHeight);
-    botinput.value = "";
 
-    // Disable send button and input field while waiting
+    // Render uploaded image if any
+    if (image) {
+      const imageDivElement = document.createElement("div");
+      imageDivElement.classList.add("user-image-div");
+      const imageElement = document.createElement("img");
+      imageElement.src = image;
+      imageElement.classList.add("user-image");
+      imageElement.onerror = function() { this.style.display = 'none'; };
+      imageDivElement.appendChild(imageElement);
+      botMessages.appendChild(imageDivElement);
+    }
+
+    botMessages.scrollTo(0, botMessages.scrollHeight);
+
+    // Disable input + show typing indicator
     botbutton.disabled = true;
-    botinput.disabled = true;
-    console.log("bot is typing");
-
-    // Construct placeholder bot message
-    const botMessage = document.createElement("p");
-    botMessage.classList.add("bot-message-loading");
-    const botMessageSpan = document.createElement("span");
-    botMessageSpan.innerText = "";
-    botMessageSpan.classList.add("bot-message-text");
-    botMessage.classList.add("bot-message");
-    botMessage.appendChild(botMessageSpan);
-    botMessages.appendChild(botMessage);
-    botMessages.scrollTo(0, botMessages.scrollHeight);
+    botinput.disabled  = true;
+    showTypingIndicator();
 
     try {
-      // Request a response from the Shopping Assistant
       const response = await fetch("{{ $.baseUrl }}/bot", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           message: message,
-          image: image
+          image:   image,
+          history: conversationHistory,   // send full history for multi-turn
         }),
       });
+
       const responseJson = await response.json();
       console.log(responseJson);
 
-      // FIX: backend now returns "message" key (was "content")
-      const assistantMessage = responseJson.message;
+      const assistantMessage = responseJson.message || "";
+      const quickReplies     = responseJson.quick_replies || [];
 
-      // Fetch the product IDs from the response
+      // Save to conversation history for next turn
+      conversationHistory.push({ role: "user",      content: message });
+      conversationHistory.push({ role: "assistant", content: assistantMessage });
+
+      // Extract product IDs
       const extractedIds = extractIdsFromString(assistantMessage);
       console.log(extractedIds);
 
-      // Replace placeholder with real response, stripping product ID list from text
-      botMessageSpan.innerText = assistantMessage.replace(/\n+[-*\d][\S\s]*/g, "");
-      botMessage.classList.remove("bot-message-loading");
+      // Remove typing indicator and render bot response
+      removeTypingIndicator();
+      const botMessage     = document.createElement("p");
+      const botMessageSpan = document.createElement("span");
+      // Strip the product ID list from the visible text
+      botMessageSpan.innerText = assistantMessage.replace(/\[(?:id=)?[a-zA-Z0-9]+\][,\s]*/g, "").trim();
+      botMessageSpan.classList.add("bot-message-text");
+      botMessage.classList.add("bot-message");
+      botMessage.appendChild(botMessageSpan);
+      botMessages.appendChild(botMessage);
 
-      // If there are any product IDs, render product cards
+      // Render product cards
       if (extractedIds.length > 0) {
         const botProductsDiv = document.createElement("div");
         botProductsDiv.classList.add("bot-products");
 
         for (const id of extractedIds) {
-          // Retrieve product metadata from the Product Catalog
           const productResponse = await fetch("{{ $.baseUrl }}/product-meta/" + id, {
             method: "GET",
-            headers: {
-              "Content-Type": "application/json",
-            },
+            headers: { "Content-Type": "application/json" },
           });
           const product = await productResponse.json();
 
-          // Construct product card
           const botProductDiv = document.createElement("a");
           botProductDiv.classList.add("bot-product");
           botProductDiv.href = "{{ $.baseUrl }}/product/" + id;
 
-          // Product image
           const botProductImg = document.createElement("img");
           botProductImg.src = product["picture"];
           botProductImg.classList.add("bot-product-img");
           botProductImg.onerror = function() { this.style.display = 'none'; };
           botProductDiv.appendChild(botProductImg);
 
-          // Product name + description
           const botProductDescription = document.createElement("div");
           botProductDescription.classList.add("bot-product-description");
-          let productDescription = product["description"];
+          let productDescription = product["description"] || "";
           if (productDescription.length > 350) {
             productDescription = productDescription.substring(0, 330) + '...';
           }
           botProductDescription.innerHTML = "<b>" + product["name"] + "</b><br>" + productDescription;
           botProductDiv.appendChild(botProductDescription);
-
           botProductsDiv.appendChild(botProductDiv);
         }
         botMessages.appendChild(botProductsDiv);
       }
 
-      botMessages.scrollTo(0, botMessages.scrollHeight);
+      // Render quick reply suggestions
+      renderQuickReplies(quickReplies);
+
+      // Reset image after sending
+      image = null;
 
     } catch (err) {
-      // FIX: always show an error message if something goes wrong
       console.error("Assistant error:", err);
-      botMessageSpan.innerText = "Sorry, something went wrong. Please try again.";
-      botMessage.classList.remove("bot-message-loading");
+      removeTypingIndicator();
+      const errorMsg     = document.createElement("p");
+      const errorSpan    = document.createElement("span");
+      errorSpan.innerText = "Sorry, something went wrong. Please try again.";
+      errorSpan.classList.add("bot-message-text");
+      errorMsg.classList.add("bot-message");
+      errorMsg.appendChild(errorSpan);
+      botMessages.appendChild(errorMsg);
     } finally {
-      // FIX: always re-enable button — even if fetch fails
       botbutton.disabled = false;
-      botinput.disabled = false;
+      botinput.disabled  = false;
       botinput.focus();
+      botMessages.scrollTo(0, botMessages.scrollHeight);
     }
   }
 
-  main();
+  // ── Event listeners ────────────────────────────────────────────────────────
+  botbutton.addEventListener("click", handleButtonClick);
+  botinput.addEventListener("keypress", (event) => {
+    if (event.key === "Enter") handleButtonClick();
+  });
 </script>
 
 {{ end }}

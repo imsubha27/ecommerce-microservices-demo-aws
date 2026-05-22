@@ -1,20 +1,34 @@
+from dotenv import load_dotenv
+load_dotenv()
+
 import json, os
-from langchain_google_genai import GoogleGenerativeAIEmbeddings
+import boto3
+from langchain_aws import BedrockEmbeddings
 from langchain_postgres import PGVector
 from langchain_core.documents import Document
 
-# Build connection string from env vars (same pattern as the shopping assistant)
-db_host     = os.environ["ASSISTANT_DB_HOST"]
-db_port     = os.environ.get("ASSISTANT_DB_PORT", "5432")
-db_name     = os.environ.get("ASSISTANT_DB_NAME", "vectordb")
-db_user     = os.environ["ASSISTANT_DB_USER"]
-db_password = os.environ["ASSISTANT_DB_PASSWORD"]
+AWS_REGION     = os.environ.get("AWS_REGION", "ap-south-1")
+EMBED_MODEL_ID = "amazon.titan-embed-text-v2:0"
 
-conn_str = f"postgresql+psycopg://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
+# Local: always use localhost:5433
+# Kubernetes: assembles from ASSISTANT_DB_* env vars
+if "ASSISTANT_DB_HOST" in os.environ:
+    db_user     = os.environ["ASSISTANT_DB_USER"]
+    db_password = os.environ["ASSISTANT_DB_PASSWORD"]
+    db_host     = os.environ["ASSISTANT_DB_HOST"]
+    db_port     = os.environ.get("ASSISTANT_DB_PORT", "5432")
+    db_name     = os.environ.get("ASSISTANT_DB_NAME", "vectordb")
+    conn_str = f"postgresql+psycopg://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
+else:
+    conn_str = "postgresql+psycopg://postgres:vectorpass@localhost:5433/vectordb"
 
-embeddings = GoogleGenerativeAIEmbeddings(
-    model="models/gemini-embedding-001",
-    google_api_key=os.environ["GOOGLE_API_KEY"]
+print(f"Connecting to: {conn_str}")
+
+bedrock = boto3.client("bedrock-runtime", region_name=AWS_REGION)
+
+embeddings = BedrockEmbeddings(
+    client=bedrock,
+    model_id=EMBED_MODEL_ID,
 )
 
 vectorstore = PGVector(
@@ -23,9 +37,8 @@ vectorstore = PGVector(
     connection=conn_str,
 )
 
-# __file__ resolves to wherever the script is inside the container
 script_dir = os.path.dirname(os.path.abspath(__file__))
-products_path = os.path.join(script_dir, "products.json")
+products_path = os.path.join(script_dir, "..", "src", "productcatalogservice", "products.json")
 
 with open(products_path) as f:
     products = json.load(f)["products"]
@@ -33,7 +46,13 @@ with open(products_path) as f:
 docs = [
     Document(
         page_content=p["description"],
-        metadata={"id": p["id"], "name": p["name"], "categories": str(p["categories"]), "picture": p["picture"], "price": p["priceUsd"]["units"]}
+        metadata={
+            "id":         p["id"],
+            "name":       p["name"],
+            "categories": str(p["categories"]),
+            "picture":    p["picture"],
+            "price":      p["priceUsd"]["units"],
+        }
     )
     for p in products
 ]

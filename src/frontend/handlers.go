@@ -704,17 +704,21 @@ func (fe *frontendServer) getProductByID(w http.ResponseWriter, r *http.Request)
 	w.Write(jsonData)
 }
 
+
+
 func (fe *frontendServer) chatBotHandler(w http.ResponseWriter, r *http.Request) {
 	log := r.Context().Value(ctxKeyLog{}).(logrus.FieldLogger)
+
 	type Response struct {
-		Message string `json:"message"`
+		Message     string   `json:"message"`
+		QuickReplies []string `json:"quick_replies"`
 	}
 	type LLMResponse struct {
-		Content string         `json:"content"`
-		Details map[string]any `json:"details"`
+		Content      string   `json:"content"`
+		QuickReplies []string `json:"quick_replies"`
 	}
-	var response LLMResponse
 
+	var response LLMResponse
 	url := "http://" + fe.shoppingAssistantSvcAddr
 	req, err := http.NewRequest(http.MethodPost, url, r.Body)
 	if err != nil {
@@ -739,7 +743,10 @@ func (fe *frontendServer) chatBotHandler(w http.ResponseWriter, r *http.Request)
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(Response{Message: response.Content})
+	json.NewEncoder(w).Encode(Response{
+		Message:      response.Content,
+		QuickReplies: response.QuickReplies,
+	})
 }
 
 func (fe *frontendServer) setCurrencyHandler(w http.ResponseWriter, r *http.Request) {
