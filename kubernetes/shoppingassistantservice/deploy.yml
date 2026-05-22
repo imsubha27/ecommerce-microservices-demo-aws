@@ -70,17 +70,6 @@ spec:
             secretKeyRef:
               name: rds-credentials
               key: password
-         # API keys 
-        - name: GROQ_API_KEY
-          valueFrom:
-            secretKeyRef:
-              name: app-secrets
-              key: GROQ_API_KEY
-        - name: GOOGLE_API_KEY
-          valueFrom:
-            secretKeyRef:
-              name: app-secrets
-              key: GOOGLE_API_KEY
         resources:
           requests:
             cpu: 250m

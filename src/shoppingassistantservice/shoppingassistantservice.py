@@ -87,7 +87,7 @@ def create_app():
             elif turn["role"] == "assistant":
                 history_messages.append(AIMessage(content=turn["content"]))
 
-        # Step 1 — room description via Claude 3.5 Sonnet vision
+        # Step 1 — room description via Amazon Nova Pro vision
         if image_url:
             if image_url.startswith("data:"):
                 header, b64data = image_url.split(",", 1)
@@ -130,7 +130,7 @@ def create_app():
             for d in docs
         )
 
-        # Step 3 — multi-turn recommendation via Claude 3 Haiku
+        # Step 3 — multi-turn recommendation via Amazon Nova Lite, with context injected into the system prompt
         system = SystemMessage(content=(
             "You are a friendly, knowledgeable shopping assistant for Online Boutique. "
             "You help customers find products that match their style, needs, and budget. "
