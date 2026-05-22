@@ -26,9 +26,9 @@ variable "node_groups" {
       instance_types = ["t3.medium"]
       capacity_type  = "ON_DEMAND" # Use ON_DEMAND for production, SPOT for cost savings in non-critical env
       scaling_config = {
-        desired_size = 2
-        max_size     = 4
-        min_size     = 2
+        desired_size = 3
+        max_size     = 5
+        min_size     = 3
       }
     }
   }
