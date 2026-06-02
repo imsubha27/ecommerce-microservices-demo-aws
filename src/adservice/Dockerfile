@@ -33,3 +33,5 @@ EXPOSE 9555
 
 # Start server
 ENTRYPOINT ["/app/hipstershop/bin/AdService"]
+
+# Testing
