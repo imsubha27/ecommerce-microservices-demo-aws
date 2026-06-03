@@ -1,4 +1,4 @@
-name: Deploy adservice
+name: adservice Deployment
 
 on:
   push:

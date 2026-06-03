@@ -1,4 +1,4 @@
-name: Deploy recommendationservice
+name: recommendationservice Deployment
 
 on:
   push:

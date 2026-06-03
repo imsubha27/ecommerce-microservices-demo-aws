@@ -1,4 +1,4 @@
-name: Deploy currencyservice
+name: currencyservice Deployment
 
 on:
   push:

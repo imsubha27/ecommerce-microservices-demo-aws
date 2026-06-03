@@ -1,4 +1,4 @@
-name: Deploy cartservice
+name: cartservice Deployment
 
 on:
   push:

@@ -1,4 +1,4 @@
-name: Deploy orderservice
+name: orderservice Deployment
 
 on:
   push:

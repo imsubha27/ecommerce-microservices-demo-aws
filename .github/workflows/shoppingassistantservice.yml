@@ -1,4 +1,4 @@
-name: Deploy shoppingassistantservice
+name: shoppingassistantservice Deployment
 
 on:
   push:
@@ -62,19 +62,20 @@ jobs:
             -f src/shoppingassistantservice/Dockerfile \
             src/
 
+       # ── 6. Scan image for vulnerabilities ───────────────────
       - name: Scan image for vulnerabilities
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: ${{ env.ECR_REGISTRY }}/ecommerce/frontend:${{ steps.version.outputs.version }}
+          image-ref: ${{ env.ECR_REGISTRY }}/ecommerce/shoppingassistantservice:${{ steps.version.outputs.version }}
           severity: CRITICAL,HIGH
           exit-code: 1   # fail the build if critical vulnerability found
           
-      # ── 6. Push to ECR ───────────────────────────────────────
+      # ── 7. Push to ECR ───────────────────────────────────────
       - name: Push image to ECR
         run: |
           docker push ${{ env.ECR_REGISTRY }}/ecommerce/shoppingassistantservice:${{ steps.version.outputs.version }}
 
-      # ── 7. Update image tag in deploy.yml ────────────────────
+      # ── 8. Update image tag in deploy.yml ────────────────────
       - name: Update image tag in deploy.yml
         run: |
           IMAGE=${{ env.ECR_REGISTRY }}/ecommerce/shoppingassistantservice
@@ -87,7 +88,7 @@ jobs:
           echo "Updated $DEPLOY:"
           grep "image:" $DEPLOY
 
-      # ── 8. Commit and push updated deploy.yml ────────────────
+      # ── 9. Commit and push updated deploy.yml ────────────────
       - name: Commit updated deploy.yml
         run: |
           git config user.name "github-actions[bot]"
@@ -100,7 +101,7 @@ jobs:
           git commit -m "deploy shoppingassistantservice:${{ steps.version.outputs.version }}"
           git push
 
-      # ── 9. Tag this version in Git ───────────────────────────
+      # ── 10. Tag this version in Git ───────────────────────────
       - name: Create Git tag
         run: |
           git tag shoppingassistantservice-${{ steps.version.outputs.version }}
