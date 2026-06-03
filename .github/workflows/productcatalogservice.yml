@@ -1,0 +1,108 @@
+name: Deploy productcatalogservice
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'src/productcatalogservice/**'   # only runs when productcatalogservice code changes
+
+env:
+  AWS_REGION: ap-south-1
+  ECR_REGISTRY: 412628362705.dkr.ecr.ap-south-1.amazonaws.com
+
+jobs:
+  deploy:
+    name: Build, Push & Update deploy.yml
+    runs-on: ubuntu-latest
+
+    steps:
+
+      # ── 1. Checkout ──────────────────────────────────────────
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # full history needed to read git tags
+
+      # ── 2. Generate version number ───────────────────────────
+      # Tags are per-service: productcatalogservice-v1, productcatalogservice-v2, productcatalogservice-v3 ...
+      - name: Generate version number
+        id: version
+        run: |
+          LATEST=$(git tag --list "productcatalogservice-v*" --sort=-version:refname | head -1)
+
+          if [ -z "$LATEST" ]; then
+            NUMBER=1
+          else
+            NUMBER=$(echo $LATEST | sed 's/productcatalogservice-v//')
+            NUMBER=$((NUMBER + 1))
+          fi
+
+          SHORT_SHA=${GITHUB_SHA::8}
+          VERSION="v${NUMBER}-${SHORT_SHA}"
+
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Building productcatalogservice as $VERSION"
+
+      # ── 3. AWS credentials ───────────────────────────────────
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      # ── 4. Login to ECR ──────────────────────────────────────
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      # ── 5. Build Docker image ────────────────────────────────
+      - name: Build Docker image
+        run: |
+          docker build \
+            -t ${{ env.ECR_REGISTRY }}/ecommerce/productcatalogservice:${{ steps.version.outputs.version }} \
+            src/productcatalogservice
+
+      - name: Scan image for vulnerabilities
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.ECR_REGISTRY }}/ecommerce/productcatalogservice:${{ steps.version.outputs.version }}
+          severity: CRITICAL,HIGH
+          exit-code: 1   # fail the build if critical vulnerability found
+
+      # ── 6. Push to ECR ───────────────────────────────────────
+      - name: Push image to ECR
+        run: |
+          docker push ${{ env.ECR_REGISTRY }}/ecommerce/productcatalogservice:${{ steps.version.outputs.version }}
+
+      # ── 7. Update image tag in deploy.yml ────────────────────
+      - name: Update image tag in deploy.yml
+        run: |
+          IMAGE=${{ env.ECR_REGISTRY }}/ecommerce/productcatalogservice
+          VERSION=${{ steps.version.outputs.version }}
+          DEPLOY=kubernetes/productcatalogservice/deploy.yml
+
+          # Replace whatever tag is currently there with the new version
+          sed -i "s|$IMAGE:.*|$IMAGE:$VERSION|g" $DEPLOY
+
+          echo "Updated $DEPLOY:"
+          grep "image:" $DEPLOY
+
+      # ── 8. Commit and push updated deploy.yml ────────────────
+      - name: Commit updated deploy.yml
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add kubernetes/productcatalogservice/deploy.yml
+
+          # Skip if nothing changed
+          git diff --staged --quiet && echo "No changes, skipping commit" && exit 0
+
+          git commit -m "deploy productcatalogservice:${{ steps.version.outputs.version }}"
+          git push
+
+      # ── 9. Tag this version in Git ───────────────────────────
+      - name: Create Git tag
+        run: |
+          git tag productcatalogservice-${{ steps.version.outputs.version }}
+          git push origin productcatalogservice-${{ steps.version.outputs.version }}
