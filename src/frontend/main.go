@@ -237,3 +237,5 @@ func mustConnGRPC(ctx context.Context, conn **grpc.ClientConn, addr string) {
 		panic(errors.Wrapf(err, "grpc: failed to connect %s", addr))
 	}
 }
+
+// testing
