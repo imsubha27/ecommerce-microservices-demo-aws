@@ -25,7 +25,7 @@ spec:
       serviceAccountName: ecommerce-sa
       containers:
       - name: email
-        image: 412628362705.dkr.ecr.ap-south-1.amazonaws.com/ecommerce/emailservice:latest
+        image: 412628362705.dkr.ecr.ap-south-1.amazonaws.com/ecommerce/emailservice:v1-fc8f0aaf
         ports:
         - containerPort: 8080
         env:
