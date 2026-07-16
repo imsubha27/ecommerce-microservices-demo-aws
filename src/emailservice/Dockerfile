@@ -9,7 +9,7 @@ WORKDIR /app
 
 # Copy requirements and install dependencies to /install
 COPY requirements.txt .
-RUN pip install --upgrade pip setuptools wheel
+RUN pip install --upgrade pip setuptools==83.0.0 wheel
 RUN pip install --prefix=/install -r requirements.txt
 
 
