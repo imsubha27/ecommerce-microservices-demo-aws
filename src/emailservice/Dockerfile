@@ -36,6 +36,9 @@ COPY . .
 # Enable unbuffered logging
 ENV PYTHONUNBUFFERED=1
 
+# Set gRPC health probe version
+ENV GRPC_HEALTH_PROBE_VERSION=v0.4.51
+
 # Expose port
 ENV PORT=8080
 EXPOSE 8080
