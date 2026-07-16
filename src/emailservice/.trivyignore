@@ -1,0 +1,7 @@
+# .trivyignore
+# setuptools bundles its own internal copies of wheel and jaraco.context
+# for its own packaging use — these are not consumed by our application
+# code and are not reachable at runtime. Setuptools maintainers confirm
+# this is not exploitable: https://github.com/pypa/setuptools/discussions/5136
+CVE-2026-24049
+CVE-2026-23949

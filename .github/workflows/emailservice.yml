@@ -68,7 +68,8 @@ jobs:
           image-ref: ${{ env.ECR_REGISTRY }}/ecommerce/emailservice:${{ steps.version.outputs.version }}
           severity: CRITICAL,HIGH
           exit-code: 1   # fail the build if critical vulnerability found
-
+          trivyignores: src/emailservice/.trivyignore
+          
       # ── 7. Push to ECR ───────────────────────────────────────
       - name: Push image to ECR
         run: |
