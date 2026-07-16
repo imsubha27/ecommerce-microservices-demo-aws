@@ -23,7 +23,7 @@ WORKDIR /emailservice
 RUN apk add --no-cache bash curl
 
 # Download gRPC health probe for Kubernetes health checks
-ENV GRPC_HEALTH_PROBE_VERSION=v0.4.18
+ENV GRPC_HEALTH_PROBE_VERSION=v0.4.51
 RUN wget -qO /bin/grpc_health_probe https://github.com/grpc-ecosystem/grpc-health-probe/releases/download/${GRPC_HEALTH_PROBE_VERSION}/grpc_health_probe-linux-amd64 && \
     chmod +x /bin/grpc_health_probe
 
@@ -35,9 +35,6 @@ COPY . .
 
 # Enable unbuffered logging
 ENV PYTHONUNBUFFERED=1
-
-# Set gRPC health probe version
-ENV GRPC_HEALTH_PROBE_VERSION=v0.4.51
 
 # Expose port
 ENV PORT=8080
