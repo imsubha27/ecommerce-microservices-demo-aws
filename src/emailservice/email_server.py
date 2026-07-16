@@ -21,6 +21,8 @@ import sys
 import time
 import grpc
 import traceback
+import boto3
+from botocore.exceptions import ClientError, NoCredentialsError
 from jinja2 import Environment, FileSystemLoader, select_autoescape, TemplateError
 from google.api_core.exceptions import GoogleAPICallError
 from google.auth.exceptions import DefaultCredentialsError
@@ -52,88 +54,91 @@ class BaseEmailService(demo_pb2_grpc.EmailServiceServicer):
   def Check(self, request, context):
     return health_pb2.HealthCheckResponse(
       status=health_pb2.HealthCheckResponse.SERVING)
-  
+
   def Watch(self, request, context):
     return health_pb2.HealthCheckResponse(
       status=health_pb2.HealthCheckResponse.UNIMPLEMENTED)
 
-class EmailService(BaseEmailService):
-  def __init__(self):
-    raise Exception('cloud mail client not implemented')
-    super().__init__()
 
-  @staticmethod
-  def send_email(client, email_address, content):
-    response = client.send_message(
-      sender = client.sender_path(project_id, region, sender_id),
-      envelope_from_authority = '',
-      header_from_authority = '',
-      envelope_from_address = from_address,
-      simple_message = {
-        "from": {
-          "address_spec": from_address,
-        },
-        "to": [{
-          "address_spec": email_address
-        }],
-        "subject": "Your Confirmation Email",
-        "html_body": content
-      }
-    )
-    logger.info("Message sent: {}".format(response.rfc822_message_id))
+class DummyEmailService(BaseEmailService):
+  """Used locally / in docker-compose. Just logs, sends nothing.
+  This is the default so local dev never needs AWS credentials."""
+
+  def SendOrderConfirmation(self, request, context):
+    logger.info('A request to send order confirmation email to {} has been received.'.format(request.email))
+    return demo_pb2.Empty()
+
+
+class SESEmailService(BaseEmailService):
+  """Used in AWS (EKS). Sends real email via Amazon SES.
+  Requires SENDER_EMAIL env var and an IAM role (via IRSA) with
+  ses:SendEmail / ses:SendRawEmail permission on the ecommerce-sa
+  service account. No AWS access keys are used or needed."""
+
+  def __init__(self):
+    self.region = os.environ.get('AWS_REGION', 'ap-south-1')
+    self.sender = os.environ['SENDER_EMAIL']  # intentionally no default - fail fast if missing
+    self.client = boto3.client('ses', region_name=self.region)
+    super().__init__()
 
   def SendOrderConfirmation(self, request, context):
     email = request.email
     order = request.order
 
     try:
-      confirmation = template.render(order = order)
+      confirmation = template.render(order=order)
     except TemplateError as err:
+      logger.error(str(err))
       context.set_details("An error occurred when preparing the confirmation mail.")
-      logger.error(err.message)
       context.set_code(grpc.StatusCode.INTERNAL)
       return demo_pb2.Empty()
 
     try:
-      EmailService.send_email(self.client, email, confirmation)
-    except GoogleAPICallError as err:
+      response = self.client.send_email(
+        Source=self.sender,
+        Destination={'ToAddresses': [email]},
+        Message={
+          'Subject': {'Data': 'Your Order Confirmation', 'Charset': 'UTF-8'},
+          'Body': {'Html': {'Data': confirmation, 'Charset': 'UTF-8'}}
+        }
+      )
+      logger.info("Message sent: {}".format(response['MessageId']))
+    except (ClientError, NoCredentialsError) as err:
+      logger.error(str(err))
       context.set_details("An error occurred when sending the email.")
-      print(err.message)
       context.set_code(grpc.StatusCode.INTERNAL)
       return demo_pb2.Empty()
 
     return demo_pb2.Empty()
 
-class DummyEmailService(BaseEmailService):
-  def SendOrderConfirmation(self, request, context):
-    logger.info('A request to send order confirmation email to {} has been received.'.format(request.email))
-    return demo_pb2.Empty()
 
 class HealthCheck():
   def Check(self, request, context):
     return health_pb2.HealthCheckResponse(
       status=health_pb2.HealthCheckResponse.SERVING)
 
+
 def start(dummy_mode):
   server = grpc.server(futures.ThreadPoolExecutor(max_workers=10),)
-  service = None
+
   if dummy_mode:
     service = DummyEmailService()
   else:
-    raise Exception('non-dummy mode not implemented yet')
+    service = SESEmailService()
 
   demo_pb2_grpc.add_EmailServiceServicer_to_server(service, server)
   health_pb2_grpc.add_HealthServicer_to_server(service, server)
 
   port = os.environ.get('PORT', "8080")
-  logger.info("listening on port: "+port)
-  server.add_insecure_port('[::]:'+port)
+  logger.info("listening on port: " + port)
+  server.add_insecure_port('[::]:' + port)
   server.start()
   try:
     while True:
       time.sleep(3600)
   except KeyboardInterrupt:
     server.stop(0)
+
 
 def initStackdriverProfiling():
   project_id = None
@@ -143,7 +148,7 @@ def initStackdriverProfiling():
     # Environment variable not set
     pass
 
-  for retry in range(1,4):
+  for retry in range(1, 4):
     try:
       if project_id:
         googlecloudprofiler.start(service='email_server', service_version='1.0.0', verbose=0, project_id=project_id)
@@ -154,15 +159,23 @@ def initStackdriverProfiling():
     except (BaseException) as exc:
       logger.info("Unable to start Stackdriver Profiler Python agent. " + str(exc))
       if (retry < 4):
-        logger.info("Sleeping %d to retry initializing Stackdriver Profiler"%(retry*10))
-        time.sleep (1)
+        logger.info("Sleeping %d to retry initializing Stackdriver Profiler" % (retry * 10))
+        time.sleep(1)
       else:
         logger.warning("Could not initialize Stackdriver Profiler after retrying, giving up")
   return
 
 
 if __name__ == '__main__':
-  logger.info('starting the email service in dummy mode.')
+  # DUMMY_MODE defaults to "true" - unset it or set DUMMY_MODE=false only where
+  # you actually want real SES sending (i.e. in the EKS deployment's env vars).
+  # Local / docker-compose runs need no changes and no AWS credentials at all.
+  dummy_mode = os.environ.get('DUMMY_MODE', 'true').lower() == 'true'
+
+  if dummy_mode:
+    logger.info('starting the email service in dummy mode.')
+  else:
+    logger.info('starting the email service with Amazon SES.')
 
   # Profiler
   try:
@@ -172,7 +185,7 @@ if __name__ == '__main__':
       logger.info("Profiler enabled.")
       initStackdriverProfiling()
   except KeyError:
-      logger.info("Profiler disabled.")
+    logger.info("Profiler disabled.")
 
   # Tracing
   try:
@@ -182,8 +195,8 @@ if __name__ == '__main__':
       trace.get_tracer_provider().add_span_processor(
         BatchSpanProcessor(
             OTLPSpanExporter(
-            endpoint = otel_endpoint,
-            insecure = True
+            endpoint=otel_endpoint,
+            insecure=True
           )
         )
       )
@@ -191,8 +204,8 @@ if __name__ == '__main__':
     grpc_server_instrumentor.instrument()
 
   except (KeyError, DefaultCredentialsError):
-      logger.info("Tracing disabled.")
+    logger.info("Tracing disabled.")
   except Exception as e:
-      logger.warn(f"Exception on Cloud Trace setup: {traceback.format_exc()}, tracing disabled.") 
-  
-  start(dummy_mode = True)
+    logger.warn(f"Exception on Cloud Trace setup: {traceback.format_exc()}, tracing disabled.")
+
+  start(dummy_mode=dummy_mode)

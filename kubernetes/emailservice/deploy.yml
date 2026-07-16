@@ -34,6 +34,18 @@ spec:
             configMapKeyRef:
               name: ecommerce-config
               key: EMAIL_PORT
+        - name: DUMMY_MODE
+          valueFrom:
+            configMapKeyRef:
+              name: ecommerce-config
+              key: DUMMY_MODE
+        - name: SENDER_EMAIL
+          valueFrom:  
+            configMapKeyRef:
+              name: ecommerce-config
+              key: SENDER_EMAIL
+        - name: AWS_REGION
+          value: "ap-south-1"
 
         resources:
           requests:

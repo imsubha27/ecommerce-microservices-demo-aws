@@ -52,3 +52,7 @@ data:
   # Shopping assistant
   COLLECTION_NAME: "products" 
   AWS_REGION: "ap-south-1" 
+
+  #SES for Email service
+  DUMMY_MODE: "false"
+  SENDER_EMAIL: "myselfsd.27@gmail.com"
