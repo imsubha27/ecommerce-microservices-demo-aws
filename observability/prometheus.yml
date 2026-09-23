@@ -9,6 +9,11 @@ scrape_configs:
       - targets: ['auth:8081']
     metrics_path: '/metrics'
 
+  - job_name: 'order-service'
+    static_configs:
+      - targets: ['order:8082']
+    metrics_path: '/metrics'
+
   - job_name: 'frontend'
     static_configs:
       - targets: ['frontend:8080']

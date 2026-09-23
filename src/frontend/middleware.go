@@ -200,6 +200,7 @@ func verifyJWTLocal(tokenStr string) (jwtClaims, bool) {
 // isPublicPath returns true for paths that never require authentication.
 func isPublicPath(path string) bool {
 	return path == baseUrl+"/_healthz" ||
+	    path == baseUrl+"/metrics" ||
 		path == baseUrl+"/robots.txt" ||
 		strings.HasPrefix(path, baseUrl+"/static/")
 }
